@@ -24,7 +24,7 @@ function toLibrary(req, res) {
 /** Serve one file from inside `dir`; 404 for anything outside it, in a dot folder, or not a plain file. */
 export function sendFile(res, dir, rel) {
   const file = path.join(dir, rel === '/' ? 'index.html' : rel);
-  if (!file.startsWith(dir + path.sep) || /[\/]\.[^\/]/.test(file) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+  if (!file.startsWith(dir + path.sep) || /[\\/]\.[^\\/]/.test(file) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
     res.writeHead(404);
     return res.end('Not found');
   }
