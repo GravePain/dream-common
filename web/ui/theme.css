@@ -31,6 +31,7 @@ html[data-app="world"]      { --accent: #5cb85c; --accent-2: #8fd48f; }
 html[data-app="paint"]      { --accent: #e0609a; --accent-2: #ef93bd; }
 html[data-app="effects"]    { --accent: #9a72e0; --accent-2: #bba0ef; }
 html[data-app="characters"] { --accent: #3cb8b0; --accent-2: #74d4ce; }
+html[data-app="sound"]      { --accent: #e0a040; --accent-2: #efc478; }
 html[data-app="portal"]     { --accent: #9aa0a8; --accent-2: #c0c5cc; }
 
 .dream-ui, .dream-ui * { box-sizing: border-box; }

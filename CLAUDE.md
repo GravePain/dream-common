@@ -30,6 +30,7 @@ All dependency-free (except Dream World, which is Vite). Each is a static folder
 | `dream-paint` | 5250 | Sprites, icons, UI: snapshot any library piece, paint in layers. | brushes, palettes, any piece |
 | `dream-effects` | 5260 | Layered particle and weather effects (`.fx.json`). | `fx.js` presets |
 | `dream-characters` | 5270 | Dress and tint CC0 rigged characters, try animations. | CC0 character packs |
+| `dream-sound` | 5310 | Sounds sliced and filtered from CC0 recordings (`.wav` + `.wav.sound.json`), synth presets (`.synth.json`), step clips (`.clip.json` + `.clip.json.wav`); played everywhere through `web/audio.js`. | CC0 sounds, any audio |
 | `dream-world` | 5240 | Worlds from library pieces only; scenes saved back as `.scene.json`. Has a public gallery. | everything above |
 | `dream-forge-creations` | — | Saved Forge output, a library place. | — |
 
@@ -67,6 +68,6 @@ Rules of thumb when working here:
 
 ## Ports at a glance
 
-5170 portal · 5180 World Builder · 5190 Skyfall Blade · 5210 Forge · 5230 Library · 5240 World · 5250 Paint · 5260 Effects · 5270 Characters
+5170 portal · 5180 World Builder · 5190 Skyfall Blade · 5210 Forge · 5230 Library · 5240 World · 5250 Paint · 5260 Effects · 5270 Characters · 5310 Sound
 
 Planned (`docs/game-builder-plan.md`, nothing built yet): 5280 Codex · 5290 Story · 5300 Motion · 5310 Sound · 5320 Dream Server

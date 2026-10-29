@@ -9,8 +9,8 @@
 
 // the Library's API, always through the page's own origin (/dl/ is proxied to port 5230 by every Dream server)
 export const BASE = `${location.origin}/dl`;
-const KIND_ICON = { effect: '✺', scene: '⛰', model: '◆', character: '☺', texture: '▦', sprite: '◩', image: '▣', audio: '♪', package: '▤', palette: '◐', generator: '⚙' };
-const KIND_NAME = { all: 'All', scene: 'Scenes', effect: 'Effects', model: 'Models', texture: 'Textures', sprite: 'Sprites', ui: 'Game UI', generator: 'Gens', palette: 'Palettes', image: 'Images', audio: 'Sounds', package: 'Packs' };
+const KIND_ICON = { effect: '✺', scene: '⛰', model: '◆', character: '☺', texture: '▦', sprite: '◩', image: '▣', audio: '♪', synth: '∿', clip: '▥', package: '▤', palette: '◐', generator: '⚙' };
+const KIND_NAME = { all: 'All', scene: 'Scenes', effect: 'Effects', model: 'Models', texture: 'Textures', sprite: 'Sprites', ui: 'Game UI', generator: 'Gens', palette: 'Palettes', image: 'Images', audio: 'Sounds', synth: 'Synths', clip: 'Clips', package: 'Packs' };
 
 export const fileUrl = (place, p) => `${BASE}/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(p)}`;
 
@@ -79,7 +79,7 @@ function mountPanel({ full = false } = {}) {
   return { root, toggle, q };
 }
 
-export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenUi = null, onOpenModel = () => {}, onOpenPalette = () => {}, onOpenGenerator = () => {}, onOpenImage = null, full = false } = {}) {
+export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenUi = null, onOpenSound = null, onOpenSynth = null, onOpenClip = null, onOpenModel = () => {}, onOpenPalette = () => {}, onOpenGenerator = () => {}, onOpenImage = null, full = false } = {}) {
   const problems = new Map(); // generator files that failed to load, by place:path
   const st = { places: [], place: null, items: [], kind: 'all', tags: new Set(), search: '', online: false };
   const { q } = mountPanel({ full });
@@ -233,6 +233,11 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenU
     if (it.kind === 'ui') return onOpenUi ? onOpenUi({ url, item: it, place: st.place }) : window.open(`${location.protocol}//${location.hostname}:5250/?ui=${encodeURIComponent(it.place ?? st.place)}|${encodeURIComponent(it.path)}`, '_blank');
     // effects open in Dream Effects, unless the host opens them itself
     if (it.kind === 'effect') return onOpenEffect ? onOpenEffect({ url, item: it, place: st.place }) : window.open(`${location.protocol}//${location.hostname}:5260/?fx=${encodeURIComponent(it.place ?? st.place)}|${encodeURIComponent(it.path)}`, '_blank');
+    // Dream Sound's pieces open there unless the host opens them itself; sounds open there only when the host asks (else they preview)
+    const inSound = (k) => window.open(`${location.protocol}//${location.hostname}:5310/?${k}=${encodeURIComponent(it.place ?? st.place)}|${encodeURIComponent(it.path)}`, '_blank');
+    if (it.kind === 'synth') return onOpenSynth ? onOpenSynth({ url, item: it, place: st.place }) : inSound('synth');
+    if (it.kind === 'clip') return onOpenClip ? onOpenClip({ url, item: it, place: st.place }) : inSound('clip');
+    if (it.kind === 'audio' && onOpenSound) return onOpenSound({ url, item: it, place: st.place });
     if (it.kind === 'model' || it.kind === 'character') {
       if (!/\.(glb|gltf)$/i.test(it.path)) return alert('Dream modules open .glb and .gltf models. Other formats are listed so you can find them.');
       onOpenModel({ url, item: it, place: st.place });
