@@ -25,7 +25,7 @@ Claude Code session is the agent; there is no paid agent loop inside an app):
 | --- | --- |
 | `build.py` | The outer runner: `python build.py <script.py> --style low_poly|stylized|pbr|all --seed N --out DIR [--save "<folder>"]`. Starts Blender with `entry.py`, reads `result.json`, makes `preview.png` and `sheet.png` (the three styles side by side when `all`), prints warnings, and with `--save` posts each piece to the Library (`/api/save` with `.thumb.png`, `.meta.json` carrying script, params, style, seed, warnings). |
 | `entry.py` | Runs inside Blender: empty scene, executes the asset script with `kit`, `PARAMS`, `STYLE` and a seeded `rng` in scope, applies the style pass, runs the checks, exports one GLB per piece, renders the thumbnail from a fixed rig (same framing and three suns for every asset, like the Forge viewer's light), writes `result.json`. |
-| `kit.py` | Lifted from the harness's `bkit.py` (1,774 lines) and `organic.py`, trimmed to what the scripts below use. The helpers an asset script builds with: `box`, `cylinder(sides)`, `lathe(profile)`, `extrude(outline, h)`, `tube(path)`, `rock(seed)`, `tuft(kind, blades, h)`, `join`, `mirror`, `bevel`, `sit_on_ground`, `piece(name, root)` (declares one library piece), `material(role)`. Materials are **palette roles** (`PAL.bark`, `PAL.leaf`, `PAL.metal`...) as in the Forge's `lib.js`, so any Dream palette suits any script. |
+| `kit.py` | Lifted from the harness's `bkit.py` (1,774 lines) and `organic.py`, trimmed to what the scripts below use. The helpers an asset script builds with: `box`, `cylinder(sides)`, `lathe(profile)`, `extrude(outline, h)`, `tube(path)`, `rock(seed)`, `tuft(kind, blades, h)`, `join`, `mirror`, `bevel`, `sit_on_ground`, `piece(name, root)` (declares one library piece), `material(role, roughness, metallic, opacity, mode, cutoff, mask)`. Materials are **palette roles** (`PAL.bark`, `PAL.leaf`, `PAL.metal`...) as in the Forge's `lib.js`, so any Dream palette suits any script. |
 | `styles.json` | `low_poly`, `stylized`, `pbr`: what the style pass does and what the checks measure (below). |
 | `checks.py` | Lifted from `quality.py`, `readiness.py` and `artstyle.py`, with the per-piece change. The measured checks: triangles against the style cap, connected pieces **per declared piece** (a set is five pieces, each checked alone), footprint on the 1 m grid and origin on the floor, saturation range, flat-shade share, non-manifold edges, UV presence when textured. Warnings only; nothing fails a build except a script error. |
 | `README.md` | The script contract and a worked example. |
@@ -84,3 +84,17 @@ sheet, and the Forge viewer, decide the look; the plan does not.
 
 Not in scope: characters and rigs (Dream Characters covers them with CC0 bases), animation, sprites,
 sound, video; everything else the SINNON harness does.
+
+## Materials (added 2026-10-29)
+
+`kit.material(role, roughness=0.6, metallic=0.0, opacity=1.0, mode="opaque", cutoff=0.5, mask=None)` carries the
+Forge's material fields, so a scripted piece and a Forge piece round-trip identically through the GLB:
+
+| Field | Blender | glTF |
+| --- | --- | --- |
+| `metallic`, `roughness` | Principled BSDF Metallic, Roughness | `metallicFactor`, `roughnessFactor` |
+| `mode="blend"`, `opacity` | BSDF Alpha, render method Blended | `alphaMode: BLEND`, `baseColorFactor` alpha |
+| `mode="cutout"`, `cutoff`, `mask=kit.mask(name, size, solid)` | image alpha → `1 - (alpha < cutoff)` → BSDF Alpha | `alphaMode: MASK`, `alphaCutoff`, mask in `baseColorTexture` |
+
+The pbr style's role textures skip non-opaque materials, so glass and cutouts keep their alpha.
+`scripts/lantern.py` uses all three (metal frame, glass panes, slotted cutout cap).
