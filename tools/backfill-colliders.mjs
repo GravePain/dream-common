@@ -16,6 +16,10 @@ const DRY = process.argv.includes('--dry');
 const LIBRARY = process.env.DREAM_LIBRARY ?? 'http://127.0.0.1:5230'; // whose save place 0 is ROOT
 const SKIP = /(^|[\\/])(Characters|Autosaves|\.versions)([\\/]|$)/;
 const ROUND = /rock|boulder|barrel|tree|trunk|log/i;
+// trees and ferns: their bounds are the canopy, so the shape is the trunk only (as the Dream World bridge's fallback)
+const PLANT = /tree|fern|palm|pine|oak|birch|willow/i;
+// --redo: save again the pieces this script wrote before (collidersFrom "backfill-bounds") with the current rules
+const REDO = process.argv.includes('--redo');
 
 function* glbs(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -74,6 +78,10 @@ export function collidersFor(name, b) {
   const [w, h, d] = [0, 1, 2].map((k) => b.hi[k] - b.lo[k]);
   if (h < 0.3 || (h < 0.5 && h < 0.15 * Math.max(w, d))) return []; // ground cover is walked over (the sim cannot stand on a shape yet)
   const x = r3((b.lo[0] + b.hi[0]) / 2), y = r3((b.lo[1] + b.hi[1]) / 2), z = r3((b.lo[2] + b.hi[2]) / 2);
+  if (PLANT.test(name)) {
+    const dia = r3(Math.max(0.3, Math.min(w, d) * 0.16));
+    return [{ shape: 'cylinder', size: { x: dia, y: r3(h), z: dia }, trigger: false, x, y, z, rotY: 0 }];
+  }
   if (ROUND.test(name) && Math.max(w, d) / Math.min(w, d) <= 1.15) {
     const dia = r3(Math.max(w, d));
     return [{ shape: 'cylinder', size: { x: dia, y: r3(h), z: dia }, trigger: false, x, y, z, rotY: 0 }];
@@ -85,11 +93,13 @@ const out = { written: 0, none: 0, skipped: 0 };
 for (const file of glbs(ROOT)) {
   const mf = file + '.meta.json';
   const meta = fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')) : {};
-  if (Array.isArray(meta.colliders) || meta.wear || meta.kind === 'character') { out.skipped++; continue; }
+  const ours = meta.collidersFrom === 'backfill-bounds';
+  if ((Array.isArray(meta.colliders) && !(REDO && ours)) || meta.wear || meta.kind === 'character') { out.skipped++; continue; }
   let b;
   try { b = bounds(gltfOf(file)); } catch (e) { console.warn('skip', file, e.message); out.skipped++; continue; }
   if (!b) { out.skipped++; continue; }
   const name = path.basename(file, '.glb'), colliders = collidersFor(name, b);
+  if (ours && JSON.stringify(colliders) === JSON.stringify(meta.colliders)) { out.skipped++; continue; } // a redo with nothing new
   colliders.length ? out.written++ : out.none++;
   console.log(`${path.relative(ROOT, file)}: ${colliders.length ? `${colliders[0].shape} ${JSON.stringify(colliders[0].size)}` : 'none (low ground cover: walked over)'}`);
   if (!DRY) await save(file, { ...meta, colliders, collidersFrom: 'backfill-bounds' });
