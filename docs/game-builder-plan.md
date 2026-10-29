@@ -31,6 +31,9 @@ the user's own K:\dev-hafen-server.
 - Entity = template id + components: `spawn`, `npc` (stationary/patrol/wander/follow/flee), `collider`,
   `interact`, `loot`, `shop`, `door/portal`, `light/fx`. Inspector panels in Dream World per component.
 - Generic modifier model for items/abilities/buffs: `{stat, op, value, duration}`.
+- **Step 1 done (2026-10-29):** schemas in `web/schema/` (zone, cell, entity and templates, components
+  with the modifier, character) on one walker, `web/zone.js` (cells, scene <-> zone), Library kind `zone`,
+  Save as zone / Open zone in Dream World, Crystal Cascades converted; `docs/zone-format.md`.
 
 ## Phase 1: Play mode, single player (Dream World)
 - A Play button: spawn a Dream Characters character, third-person camera, walk on terrain with collision.
@@ -200,7 +203,7 @@ the compiled output. Schemas are TS types plus runtime validators generated from
   part of Phase 2, gated by first concrete step 4 before any gameplay system.
 
 ## First concrete steps
-1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells.
+1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells. **Done** (`zone-format.md`).
 2. `sim/` skeleton: world, entities, tick, intent movement on a heightfield.
 3. Play mode in Dream World using `sim/` locally.
 4. Dream Server with one zone, two browsers walking around together.
