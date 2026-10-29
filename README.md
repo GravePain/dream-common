@@ -18,6 +18,10 @@ serveFolder(import.meta.url, { name: 'Dream Paint', port: 5250 });
 
 If a tool says it cannot find `../dream-common/serve.mjs`, clone this repo beside it.
 
+## web/
+
+The browser kit every tool imports from `${location.origin}/common/`: `library.js`, `library.css`, `brushes.js`, `palettes.js`, `fx.js`. The Library server serves it too, and Dream World proxies `/common` to the Library.
+
 ## docs/
 
 Notes that belong to the series rather than one tool: reviews, the publish flow, how the tools fit together.

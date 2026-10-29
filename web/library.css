@@ -1,0 +1,68 @@
+/* Dream Library panel: same look in every module. Everything is scoped to .dl-* */
+.dl-panel, .dl-toggle {
+  --dl-panel: rgba(34, 24, 18, 0.86);
+  --dl-ink: #e8d9b8;
+  --dl-dim: #b8a888;
+  --dl-accent: #d9773a;
+  --dl-field: rgba(255, 240, 210, 0.08);
+  --dl-line: rgba(232, 217, 184, 0.18);
+  font: 13px/1.35 system-ui, sans-serif;
+  color: var(--dl-ink);
+  box-sizing: border-box;
+}
+.dl-panel *, .dl-panel *::before, .dl-panel *::after { box-sizing: border-box; }
+.dl-panel button, .dl-toggle {
+  background: var(--dl-field); color: var(--dl-ink); border: 1px solid var(--dl-line); border-radius: 6px;
+  padding: 5px 9px; font: inherit; cursor: pointer; margin: 0;
+}
+.dl-panel button:hover, .dl-toggle:hover { border-color: var(--dl-accent); }
+.dl-panel button.on { background: var(--dl-accent); border-color: var(--dl-accent); color: #2a1a10; font-weight: 600; }
+
+.dl-toggle { position: fixed; right: 12px; top: 12px; z-index: 1001; background: var(--dl-panel); }
+body.dl-open .dl-toggle { right: 324px; }
+.dl-panel {
+  position: fixed; right: 12px; top: 12px; bottom: 12px; width: 300px; z-index: 1000;
+  display: none; flex-direction: column; gap: 6px; padding: 12px;
+  background: var(--dl-panel); border-radius: 10px; backdrop-filter: blur(6px); text-align: left;
+}
+body.dl-open .dl-panel, .dl-panel.dl-full { display: flex; }
+.dl-panel.dl-full { position: static; width: auto; height: 100%; border-radius: 0; }
+
+.dl-head { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.dl-head b { color: var(--dl-accent); }
+.dl-count { color: var(--dl-dim); font-size: 12px; flex: 1; }
+.dl-label { display: flex; justify-content: space-between; align-items: center; color: var(--dl-dim); font-size: 12px; }
+.dl-label button { padding: 2px 7px; font-size: 12px; }
+.dl-places { display: flex; flex-direction: column; gap: 3px; max-height: 130px; overflow-y: auto; }
+.dl-place { display: flex; justify-content: space-between; text-align: left; padding: 4px 8px !important; }
+.dl-place.missing span { color: var(--dl-dim); font-style: italic; }
+.dl-place i { font-style: normal; color: var(--dl-dim); padding: 0 4px; }
+.dl-place i:hover { color: var(--dl-accent); }
+.dl-search { background: var(--dl-field); color: var(--dl-ink); border: 1px solid var(--dl-line); border-radius: 6px; padding: 5px 8px; font: inherit; width: 100%; }
+.dl-kinds { display: flex; gap: 3px; }
+.dl-kinds button { flex: 1; padding: 3px 0; font-size: 11px; }
+.dl-tags { display: flex; flex-wrap: wrap; gap: 4px; max-height: 70px; overflow-y: auto; }
+.dl-tag { padding: 1px 7px !important; font-size: 11px !important; border-radius: 10px !important; }
+.dl-items { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 6px; align-content: start; }
+.dl-hint { grid-column: 1 / -1; color: var(--dl-dim); font-size: 12px; line-height: 1.45; margin: 6px 0; }
+.dl-hint code { background: var(--dl-field); padding: 1px 4px; border-radius: 4px; }
+.dl-item { position: relative; background: var(--dl-field); border: 1px solid var(--dl-line); border-radius: 7px; padding: 5px; cursor: pointer; }
+.dl-item:hover { border-color: var(--dl-accent); }
+.dl-art { aspect-ratio: 1; border-radius: 5px; background: #cfd8d6 center / cover no-repeat; display: grid; place-items: center; font-size: 28px; color: #6a5a4a; overflow: hidden; }
+.dl-item.audio .dl-art { background: #3a2a22; color: var(--dl-accent); }
+.dl-item.palette .dl-art { display: flex; flex-direction: column; }
+.dl-item.palette .dl-art span { flex: 1; }
+.dl-item.playing { border-color: var(--dl-accent); }
+.dl-item.playing .dl-art { animation: dl-pulse 0.8s ease-in-out infinite alternate; }
+@keyframes dl-pulse { to { filter: brightness(1.4); } }
+.dl-name { margin-top: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-tagline { font-size: 10px; color: var(--dl-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 12px; }
+.dl-edit { position: absolute; top: 8px; right: 8px; padding: 0 5px !important; font-size: 12px; opacity: 0; background: var(--dl-panel) !important; }
+.dl-item:hover .dl-edit { opacity: 1; }
+
+@media (max-width: 640px) {
+  .dl-panel:not(.dl-full) { left: 8px; right: 8px; width: auto; top: 8px; bottom: auto; max-height: 48vh; }
+  body.dl-open .dl-toggle { right: 12px; top: auto; bottom: 12px; }
+}
+.dl-panel.dl-drop { outline: 3px dashed #d9773a; outline-offset: -6px; }
+.dl-import { font-size: 11px; }

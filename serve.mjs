@@ -34,11 +34,11 @@ export function sendFile(res, dir, rel) {
 
 /**
  * Serve the folder of `fileUrl` (a tool's import.meta.url) as `name` on `port`.
- * `/dl/*` goes to the Dream Library; `/common/*` serves this folder (shared browser-side files);
+ * `/dl/*` goes to the Dream Library; `/common/*` serves dream-common/web (the shared browser-side kit);
  * `routes(req, res)` may answer a request first and return true.
  */
 export function serveFolder(fileUrl, { name, port, routes } = {}) {
-  const dir = path.dirname(fileURLToPath(fileUrl)), common = path.dirname(fileURLToPath(import.meta.url));
+  const dir = path.dirname(fileURLToPath(fileUrl)), common = path.join(path.dirname(fileURLToPath(import.meta.url)), 'web');
   const server = http.createServer((req, res) => {
     try {
       if (routes?.(req, res)) return;
