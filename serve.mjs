@@ -13,7 +13,9 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 
 const LIBRARY = new URL(process.env.DREAM_LIBRARY || 'http://127.0.0.1:5230');
 function toLibrary(req, res) {
-  const up = http.request({ host: LIBRARY.hostname, port: LIBRARY.port, method: req.method, path: req.url.slice(3) || '/', headers: { ...req.headers, host: LIBRARY.host } }, (r) => {
+  // the Library decides who may write by the real client, so pass it on (replacing whatever the client sent)
+  const headers = { ...req.headers, host: LIBRARY.host, 'x-forwarded-for': req.socket.remoteAddress ?? '' };
+  const up = http.request({ host: LIBRARY.hostname, port: LIBRARY.port, method: req.method, path: req.url.slice(3) || '/', headers }, (r) => {
     res.writeHead(r.statusCode, r.headers);
     r.pipe(res);
   });
