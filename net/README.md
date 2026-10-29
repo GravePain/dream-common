@@ -15,7 +15,8 @@ Plain JS, no DOM. JSON over one WebSocket at `/ws`, one message object per frame
 
 | `t` | Fields |
 | --- | --- |
-| `welcome` | `uid` (this player's), `tick`, `zone`, `spawn: { x, z }` (where it stands: the zone's spawn, or where it left), `players: [{ uid, name, character }]` (the others), `resume` (the reconnection token: valid while the room holds this player, 60 s after a drop), `exp` (ms), `resumed: true` after a resume |
+| `welcome` | `uid` (this player's), `tick`, `zone`, `spawn: { x, z }` (where it stands: the zone's spawn, or where it left), `players: [{ uid, name, character }]` (the others), `resume` (the reconnection token: valid while the room holds this player, 60 s after a drop), `exp` (ms), `resumed: true` after a resume, `name` (the zone's), `states: { uid: { open } }` (doors and chests, world scope) |
+| `transfer` | `zone, resume`: a portal took this player out of its zone; say `hello { resume, zone, character }` again on the same socket to arrive there (same uid and account) |
 | `join` | `uid, name, character`: another player came in |
 | `leave` | `uid`: another player left |
 | `snapshot` | **binary since step 7** (below); decodes to `tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq }]`: one per cell of the player's area of interest (its cell and the neighbours), after every 20 Hz tick, movers only; the in-process server's shape (`sim/index.js`) plus `at` (the server's `Date.now()` at that tick) and, on players only, `seq` (the last one the server applied for that player; absent before its first sequenced intent, never on npcs) |

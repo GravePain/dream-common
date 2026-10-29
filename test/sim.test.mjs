@@ -227,3 +227,23 @@ test('collider schema takes a cylinder and npc patrol points', () => {
   assert.deepEqual(validateComponent('npc', { mode: 'patrol', points: [{ x: 1, z: 2 }] }), []);
   assert.ok(validateComponent('npc', { mode: 'patrol', points: [{ x: 'a', z: 2 }] }).length > 0);
 });
+
+test('a portal fires once per entry, re-arms after the player leaves its trigger, and never blocks', () => {
+  const zone = makeZone(() => 0);
+  const gate = { uid: 'gate', template: 'arch', transform: { x: 5, y: 0, z: 0, rotY: 0, scale: 1 }, components: { portal: { zone: 'Portal Test', cell: 'x0z0', x: 3, z: 4 }, collider: { shape: 'box', size: { x: 1, y: 3, z: 4 }, trigger: true } } };
+  const sim = createSim({ zone, cells: [cell([gate])], seed: 1 });
+  const fired = [];
+  sim.on('portal', (ev) => fired.push(ev));
+  sim.join('p1', { x: 0, z: 0 });
+  sim.intent('p1', { type: 'moveTo', x: 10, z: 0 });
+  run(sim, 4);
+  assert.equal(fired.length, 1, 'once while walking through');
+  assert.deepEqual({ ...fired[0], tick: 0 }, { tick: 0, uid: 'p1', portal: 'gate', zone: 'Portal Test', cell: 'x0z0', x: 3, z: 4 });
+  assert.ok(sim.world.get('p1').x > 9, 'the trigger did not stop the player');
+  sim.intent('p1', { type: 'moveTo', x: 0, z: 0 });
+  run(sim, 4);
+  assert.equal(fired.length, 2, 're-armed: walking back fires again');
+  sim.intent('p1', { type: 'moveTo', x: 5, z: 0 });
+  run(sim, 3);
+  assert.equal(fired.length, 3, 'standing in it fires once');
+});

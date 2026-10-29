@@ -6,9 +6,13 @@
 //   sim.join('p1', { x: 0, z: 0 });
 //   sim.intent('p1', { type: 'move', dir: { x: 1, z: 0 } });
 //   step(sim, realDt);                 // runs as many whole ticks as realDt covers
-//   sim.on('enter cell', (ev) => ...); // also 'interact', 'blocked', 'tick'
+//   sim.on('enter cell', (ev) => ...); // also 'interact', 'blocked', 'portal', 'tick'
+//
+// Portals: an entity with a `portal` component and a `collider` with `trigger` (on itself, or a trigger
+// collider child the bridge made from its piece's meta) fires `portal { tick, uid, portal, zone, cell, x, z }`
+// once when a player's capsule comes to overlap it; it re-arms when the player has left every shape of it.
 import { createWorld } from './world.js';
-import { resolve, tooSteep, walkable } from './colliders.js';
+import { resolve, tooSteep, walkable, touches } from './colliders.js';
 import { check, oneShot } from './intents.js';
 import { yawOf, turnToward, clamp } from './math.js';
 
@@ -43,7 +47,14 @@ export function createSim({ zone, cells, templates, seed = 1 } = {}) {
     off: (type, cb) => listeners.get(type)?.delete(cb),
     emit: (type, ev) => { for (const cb of listeners.get(type) ?? []) cb(ev); },
     players: () => [...world.entities.values()].filter((e) => e.kind === 'player').sort(byUid),
+    portals: [],
   };
+  // portals and their trigger shapes, in uid order
+  for (const e of [...world.entities.values()].sort(byUid)) {
+    if (!e.components.portal) continue;
+    const shapes = [...world.entities.values()].filter((c) => (c === e || c.parent === e.uid) && c.components.collider?.trigger).sort(byUid);
+    if (shapes.length) sim.portals.push({ uid: e.uid, portal: e.components.portal, shapes });
+  }
   // npcs that move become movers; stationary ones (and follow / flee, not built yet) stand
   for (const e of world.entities.values()) {
     const npc = e.components.npc;
@@ -70,7 +81,7 @@ export function stepOnce(sim) {
   const { world } = sim;
   for (const p of sim.pending) applyEntry(sim, p);
   sim.pending = [];
-  for (const e of sim.players()) movePlayer(sim, e);
+  for (const e of sim.players()) { movePlayer(sim, e); if (sim.portals.length) portals(sim, e); }
   for (const e of [...world.entities.values()].filter((x) => x.kind === 'npc').sort(byUid)) moveNpc(sim, e);
   sim.emit('tick', { tick: sim.tick });
   sim.tick++;
@@ -92,6 +103,19 @@ function applyEntry(sim, p) {
   if (i.type === 'face') e.yaw = i.yaw;
   else if (i.type === 'interact') interact(sim, e, i.uid);
   if (!oneShot(i)) e.order = i;
+}
+
+/** Fire `portal` on entering a portal's trigger; re-arm once the player is out of all its shapes. */
+function portals(sim, e) {
+  e.inPortals ??= new Set();
+  for (const p of sim.portals) {
+    const inside = p.shapes.some((s) => touches(s, e, MOVE.radius, MOVE.height));
+    if (inside && !e.inPortals.has(p.uid)) {
+      e.inPortals.add(p.uid);
+      const { zone, cell = null, x = 0, z = 0 } = p.portal;
+      sim.emit('portal', { tick: sim.tick, uid: e.uid, portal: p.uid, zone, cell, x, z });
+    } else if (!inside) e.inPortals.delete(p.uid);
+  }
 }
 
 function interact(sim, e, uid) {

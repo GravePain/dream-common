@@ -65,6 +65,22 @@ the cell its `transform.x, z` falls in: `cellOf(x, z, size)` in `web/zone.js`.
 | `fx` | `type` (a Dream World built-in or `library`), `path` (`place\|path` of a library effect), `radius` |
 | `animal` | `defId`, `home {x, z}` (Dream World's AnimalSave) |
 
+**Player spawn.** An entity with `spawn` of group `player` (Dream World: Play settings, *Set spawn here*,
+makes a group carrying one) is where new players start: the Dream Server puts each at a random walkable
+point within its `radius`. Without one, the zone's `spawn`, else its centre. A player who has been in the
+zone before starts where it left.
+
+**Portals.** An entity with `portal` and a `collider` with `trigger: true` (on itself, or a trigger collider
+from its piece's meta) moves a player who walks into it to another zone: `zone` is a zone name in the same
+Library place ("Portal Test" means `Zones/Portal Test/zone.json`) or a full `"place|path/zone.json"` ref;
+`x`, `z` are where the player arrives in that zone (`cell` is informational). The arrival is checked
+walkable, else the nearest walkable point within 3 m, else the target's spawn. Put the arrival a few metres
+off the target zone's own portal so the player does not walk straight back. The sim fires the event once
+per entry; the trigger never blocks.
+
+**Doors and chests.** An entity with `interact` of verb `open` keeps its open/closed state on the Dream
+Server (world scope, per zone), shared by everyone and kept across restarts.
+
 Plus `MODIFIER`, `{ stat, op: add|mul|set, value, duration? }`, for items and buffs later. A component may
 carry fields the schema does not name (a converted record's extra fields ride there, so nothing is lost).
 

@@ -38,6 +38,19 @@ export function shapeEntity(e, s, k, lift) {
   };
 }
 
+/**
+ * Where a new player stands: a random point within the spawn's radius (`random` in [0, 1)) that is walkable,
+ * else the spawn itself. `walkable(x, z)` is the sim's check over the built world.
+ */
+export function spawnPoint(spawn, random, walkable = () => true) {
+  const r = spawn.radius ?? 0;
+  for (let k = 0; r > 0 && k < 8; k++) {
+    const a = random() * Math.PI * 2, d = Math.sqrt(random()) * r, x = spawn.x + Math.cos(a) * d, z = spawn.z + Math.sin(a) * d;
+    if (walkable(x, z)) return { x, z };
+  }
+  return { x: spawn.x, z: spawn.z };
+}
+
 /** The templates (piece ids) a zone's cells place, for asking the Library about each once. */
 export const templatesOf = (cells) => [...new Set((Array.isArray(cells) ? cells : Object.values(cells)).flatMap((c) => c.entities ?? []).filter((e) => e.components?.model).map((e) => e.template))];
 
@@ -75,7 +88,8 @@ export function simInput(zone, cells, opts = {}) {
 
   const spawnAt = all.find((e) => e.components?.spawn?.group === 'player');
   const zs = zone.spawn && Number.isFinite(zone.spawn.x) && Number.isFinite(zone.spawn.z) ? { x: zone.spawn.x, z: zone.spawn.z } : null;
-  const spawn = spawnAt ? { x: spawnAt.transform.x, z: spawnAt.transform.z } : zs ?? opts.spawn ?? { x: 0, z: 0 };
+  // radius: the spawn entity's spread, so a server can scatter arrivals within it (spawnPoint)
+  const spawn = spawnAt ? { x: spawnAt.transform.x, z: spawnAt.transform.z, ...(spawnAt.components.spawn.radius > 0 ? { radius: spawnAt.components.spawn.radius } : {}) } : zs ?? opts.spawn ?? { x: 0, z: 0 };
   const interactables = all.filter((e) => e.components?.interact).map((e) => {
     const use = e.components.interact;
     return { uid: e.uid, name: e.name ?? e.template.split('/').pop().replace(/\.glb$/i, ''), x: e.transform.x, z: e.transform.z, range: use.range ?? 2, verb: use.verb ?? 'use', fx: e.components.fx ?? null, light: !!e.components.light };

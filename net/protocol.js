@@ -6,7 +6,8 @@
 //                        name is; resume: the reconnection token from welcome, to take over the same player)
 //                      intent { intent, seq }                                  the sim's intents, unchanged; seq optional
 //                      ping { at }                                             at: the client's clock (ms)
-//   server -> client   welcome { uid, tick, zone, spawn, players: [{ uid, name, character }], resume, exp, resumed? }
+//   server -> client   welcome { uid, tick, zone, name, spawn, players: [{ uid, name, character }], resume, exp, resumed?, states }
+//                      transfer { zone, resume }   a portal: say hello again on this socket with { resume, zone }
 //                      join { uid, name, character }    leave { uid }
 //                      snapshot: binary since step 7 (codec.js), decoded to { tick, at, cell, entities } per cell
 //                      (welcome also carries size and slots, join a slot; the client acks each frame, binary)
@@ -19,7 +20,7 @@ export const NAME = /^[\p{L}\p{N} _'.-]{1,24}$/u;
 /** Biggest message a client may send (a hello is the largest, well under this). */
 export const MAX_BYTES = 4096;
 export const CLIENT = ['hello', 'intent', 'ping'];
-export const SERVER = ['welcome', 'join', 'leave', 'snapshot', 'event', 'pong', 'error'];
+export const SERVER = ['welcome', 'join', 'leave', 'snapshot', 'event', 'pong', 'error', 'transfer'];
 /** error.code: auth (no or bad token, a resume too late), limit (rates, sockets per address), malformed, full. */
 export const CODES = ['auth', 'limit', 'malformed', 'full'];
 /** A token as tokens.js makes it: base64url payload, a dot, base64url signature. */

@@ -10,7 +10,7 @@
 export * from './math.js';
 export { createHeightfield, terrainOf, toB64 } from './heightfield.js';
 export { createWorld } from './world.js';
-export { shapeOf, resolve, walkable, tooSteep, MAX_SLOPE } from './colliders.js';
+export { shapeOf, resolve, walkable, tooSteep, touches, MAX_SLOPE } from './colliders.js';
 export { check as checkIntent, KINDS as INTENTS } from './intents.js';
 export { createSim, step, stepOnce, replay, rng, TICK, MOVE } from './tick.js';
 import { step, TICK } from './tick.js';

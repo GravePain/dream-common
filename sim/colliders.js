@@ -88,6 +88,17 @@ export function resolve(world, pos, radius, height, ignore) {
   return { x, z, by };
 }
 
+/**
+ * Does a capsule standing at pos touch entity `e`'s collider, trigger or not? (Portals: a trigger never
+ * pushes, but the sim asks whether a player stands in it.)
+ */
+export function touches(e, pos, radius, height) {
+  const c = e.components?.collider;
+  if (!c) return false;
+  const sh = shapeOf({ ...e, components: { ...e.components, collider: { ...c, trigger: false } } });
+  return !!pushOut(sh, pos.x, pos.z, radius, pos.y, pos.y + height);
+}
+
 /** Does stepping from `from` to (x, z) climb ground steeper than maxSlope? (Downhill is always allowed.) */
 export function tooSteep(ground, from, x, z, maxSlope = MAX_SLOPE) {
   const run = Math.hypot(x - from.x, z - from.z);
