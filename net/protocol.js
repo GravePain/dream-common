@@ -10,7 +10,8 @@
 //                      transfer { zone, resume }   a portal: say hello again on this socket with { resume, zone }
 //                      join { uid, name, character }    leave { uid }
 //                      snapshot: binary since step 7 (codec.js), decoded to { tick, at, cell, entities } per cell
-//                      (welcome also carries size and slots, join a slot; the client acks each frame, binary)
+//                      (welcome also carries size and slots, join a slot; nothing is acked: each cell's
+//                      segment is a delta on its previous tick, in order over the socket)
 //                      event { tick, type, ... }        the sim's interact and blocked, for that player
 //                      pong { at, tick, serverAt }      error { reason, code }   code: one of CODES
 import { checkIntent } from '../sim/index.js';

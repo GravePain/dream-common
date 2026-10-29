@@ -1,17 +1,18 @@
-// dream-common/net/codec.js: the binary snapshot and ack frames (step 7). The server encodes, Dream World's
-// Play online and the bots decode, all through this file. Plain JS, no DOM, no Node: DataView only.
+// dream-common/net/codec.js: the binary snapshot frames. The server encodes, Dream World's Play online and
+// the bots decode, all through this file. Plain JS, no DOM, no Node: DataView only.
 //
-// A snapshot frame carries one tick for one client: the cells of its area of interest, in each the movers
-// that changed since that client's acked baseline for them (or all their fields when it has none), the
-// slots that left its view, and per cell whether everything unchanged in it is current (`complete`).
+// Step 9 (item 0): frames are made of cell segments. Each cell encodes one segment per tick, a delta against
+// its own previous tick, shared by every client that sees the cell; over a WebSocket (TCP: in order, or the
+// socket dies) a client that got every segment of a cell holds the cell's state, so nothing is acked. A
+// client's frame is the segments of the cells it sees, plus a full segment for a cell it does not hold
+// (entering its view, after a welcome, resume or transfer, or after missing more than one tick of it).
 // The decoder rebuilds whole entities and hands back the same `{ tick, at, cell, entities }` snapshots the
 // JSON protocol did, so nothing above it changes. README.md has the layout byte by byte.
+
 import { CELL } from '../web/schema/zone.js';
 
-export const SNAPSHOT = 1, ACK = 2;
-/** Ticks of baselines the server may delta against (and the decoder keeps). */
-export const WINDOW = 32;
-/** Packet cap per client per tick (bytes). */
+export const SNAPSHOT = 1;
+/** Packet cap per client per tick (bytes): the nearest cells first; the player's own cell always. */
 export const CAP = 1200;
 export const POS = 0.002;   // m per unit of x and z, relative to the cell centre (int16: +-65 m)
 export const HEIGHT = 0.01; // m per unit of y, absolute (int16: +-327 m)
@@ -20,9 +21,11 @@ const YAWQ = 65536 / (Math.PI * 2);
 export const ANIMS = ['idle', 'walk', 'run', 'death', 'jump', 'cast', 'hit'];
 export const FIELDS = ['x', 'z', 'y', 'yaw', 'anim', 'seq'];
 const BYTES = { x: 2, z: 2, y: 2, yaw: 2, anim: 1, seq: 4 };
-export const HEADER = 1 + 4 + 8 + 1 + 2;  // type, tick, at, cell count, removed count
-export const CELL_HEADER = 5;             // i, j, flags, record count
+export const HEADER = 1 + 4 + 8 + 2 + 1;  // type, tick, at, dropped-cell count, segment count
+export const CELL_HEADER = 7;             // i, j, flags, record count, left count
 export const RECORD = 4;                  // slot, mask, base
+/** Segment flags: bit 0 full (the client drops what it holds in that cell first). */
+export const FULL = 1;
 
 const clamp16 = (v) => Math.max(-32768, Math.min(32767, v));
 /** An entity's fields as the integers that travel (x, z, y absolute in their units). */
@@ -33,7 +36,6 @@ export function quantise(e) {
   if (e.seq !== undefined) q.seq = e.seq >>> 0;
   return q;
 }
-// these three run for every mover for every client every tick: unrolled
 export const sameQ = (a, b) => a.x === b.x && a.z === b.z && a.y === b.y && a.yaw === b.yaw && a.anim === b.anim && a.seq === b.seq;
 /** The fields of `q` that differ from `base` (all present ones without a base), as a mask. */
 export function maskOf(q, base) {
@@ -43,87 +45,52 @@ export function maskOf(q, base) {
 }
 const SIZES = Array.from({ length: 64 }, (_, mask) => RECORD + FIELDS.reduce((n, f, i) => n + (mask & (1 << i) ? BYTES[f] : 0), 0));
 export const recordSize = (mask) => SIZES[mask];
-/** A cell's centre in POS units, from its i, j and the zone's size. */
 /** A cell's centre along one axis in POS units, from its index and the zone's size. */
 export const centre = (k, size) => Math.round((-size / 2 + (k + 0.5) * CELL) / POS);
 export const cellIJ = (name) => { const m = /^x(\d+)z(\d+)$/.exec(name); return m ? { i: +m[1], j: +m[2] } : null; };
 
 /**
- * One snapshot frame. `cells: [{ i, j, complete, records: [{ slot, base, mask, q }] }]` (base: ticks back to
- * the baseline, 0 for none), `removed: [slot]`. `size` is the zone's (for the cell centres).
+ * One cell segment: `{ i, j, full, records: [{ slot, base, mask, q }], left: [slot] }` (base 0: the whole
+ * entity, all fields; 1: a delta on what the client holds for that slot). `left`: slots that were in this
+ * cell last tick and are not now (moved on or gone). `size` is the zone's (for the cell centre).
  */
-export function encodeSnapshot({ tick, at, size, cells, removed = [] }) {
-  let n = HEADER + removed.length * 2;
-  for (const c of cells) { n += CELL_HEADER; for (const r of c.records) n += recordSize(r.mask); }
+export function encodeSegment({ i, j, full = false, records = [], left = [] }, size) {
+  let n = CELL_HEADER + left.length * 2;
+  for (const r of records) n += SIZES[r.mask];
   const buf = new Uint8Array(n), v = new DataView(buf.buffer);
-  let o = 0;
-  v.setUint8(o, SNAPSHOT); o += 1;
-  v.setUint32(o, tick >>> 0); o += 4;
-  v.setFloat64(o, at); o += 8;
-  v.setUint16(o, removed.length); o += 2;
-  for (const s of removed) { v.setUint16(o, s); o += 2; }
-  v.setUint8(o, cells.length); o += 1;
-  for (const c of cells) {
-    const ox = centre(c.i, size), oz = centre(c.j, size);
-    v.setUint8(o, c.i); v.setUint8(o + 1, c.j); v.setUint8(o + 2, c.complete ? 1 : 0); v.setUint16(o + 3, c.records.length); o += CELL_HEADER;
-    for (const r of c.records) {
-      v.setUint16(o, r.slot); v.setUint8(o + 2, r.mask); v.setUint8(o + 3, r.base); o += RECORD;
-      const q = r.q, m = r.mask;
-      if (m & 1) { v.setInt16(o, clamp16(q.x - ox)); o += 2; }
-      if (m & 2) { v.setInt16(o, clamp16(q.z - oz)); o += 2; }
-      if (m & 4) { v.setInt16(o, q.y); o += 2; }
-      if (m & 8) { v.setUint16(o, q.yaw); o += 2; }
-      if (m & 16) { v.setUint8(o, q.anim); o += 1; }
-      if (m & 32) { v.setUint32(o, q.seq); o += 4; }
-    }
+  const ox = centre(i, size), oz = centre(j, size);
+  v.setUint8(0, i); v.setUint8(1, j); v.setUint8(2, full ? FULL : 0); v.setUint16(3, records.length); v.setUint16(5, left.length);
+  let o = CELL_HEADER;
+  for (const r of records) {
+    const q = r.q, m = r.mask;
+    v.setUint16(o, r.slot); v.setUint8(o + 2, m); v.setUint8(o + 3, r.base); o += RECORD;
+    if (m & 1) { v.setInt16(o, clamp16(q.x - ox)); o += 2; }
+    if (m & 2) { v.setInt16(o, clamp16(q.z - oz)); o += 2; }
+    if (m & 4) { v.setInt16(o, q.y); o += 2; }
+    if (m & 8) { v.setUint16(o, q.yaw); o += 2; }
+    if (m & 16) { v.setUint8(o, q.anim); o += 1; }
+    if (m & 32) { v.setUint32(o, q.seq); o += 4; }
   }
+  for (const s of left) { v.setUint16(o, s); o += 2; }
   return buf;
 }
 
-/**
- * The same frame from columns, for the server's per-client loop (dream-server/src/deltas.js) where objects
- * per record cost too much. `M` holds the tick's movers as columns (slot, qx, qz, qy, qyaw, qanim, qseq);
- * `sel` the chosen mover indices grouped by cell, `cells: [{ i, j, complete, count }]` in that order;
- * `mask` and `base` per mover index.
- */
-export function encodeColumns({ tick, at, size, removed, cells, sel, nsel, M, mask, base }) {
-  let n = HEADER + removed.length * 2 + cells.length * CELL_HEADER;
-  for (let k = 0; k < nsel; k++) n += SIZES[mask[sel[k]]];
+/** One client's frame: the header, the cells that left its view (`dropped`: [{ i, j }]), the segments' bytes. */
+export function encodeFrame({ tick, at, dropped = [], segments }) {
+  let n = HEADER + dropped.length * 2;
+  for (const s of segments) n += s.length;
   const buf = new Uint8Array(n), v = new DataView(buf.buffer);
-  let o = 0;
-  v.setUint8(o, SNAPSHOT); v.setUint32(o + 1, tick >>> 0); v.setFloat64(o + 5, at); v.setUint16(o + 13, removed.length); o += 15;
-  for (const s of removed) { v.setUint16(o, s); o += 2; }
-  v.setUint8(o, cells.length); o += 1;
-  let k = 0;
-  for (const c of cells) {
-    const ox = centre(c.i, size), oz = centre(c.j, size);
-    v.setUint8(o, c.i); v.setUint8(o + 1, c.j); v.setUint8(o + 2, c.complete ? 1 : 0); v.setUint16(o + 3, c.count); o += CELL_HEADER;
-    for (const end = k + c.count; k < end; k++) {
-      const x = sel[k], m = mask[x];
-      v.setUint16(o, M.slot[x]); v.setUint8(o + 2, m); v.setUint8(o + 3, base[x]); o += RECORD;
-      if (m & 1) { v.setInt16(o, clamp16(M.qx[x] - ox)); o += 2; }
-      if (m & 2) { v.setInt16(o, clamp16(M.qz[x] - oz)); o += 2; }
-      if (m & 4) { v.setInt16(o, M.qy[x]); o += 2; }
-      if (m & 8) { v.setUint16(o, M.qyaw[x]); o += 2; }
-      if (m & 16) { v.setUint8(o, M.qanim[x]); o += 1; }
-      if (m & 32) { v.setUint32(o, M.qseq[x]); o += 4; }
-    }
-  }
+  v.setUint8(0, SNAPSHOT); v.setUint32(1, tick >>> 0); v.setFloat64(5, at); v.setUint16(13, dropped.length);
+  let o = 15;
+  for (const c of dropped) { v.setUint8(o, c.i); v.setUint8(o + 1, c.j); o += 2; }
+  v.setUint8(o, segments.length); o += 1;
+  for (const s of segments) { buf.set(s, o); o += s.length; }
   return buf;
 }
 
-/** The client's ack: the newest tick it applied. */
-export function encodeAck(tick) {
-  const buf = new Uint8Array(5);
-  buf[0] = ACK;
-  new DataView(buf.buffer).setUint32(1, tick >>> 0);
-  return buf;
-}
-/** An ack frame's tick, or null when the bytes are not one. */
-export function decodeAck(bytes) {
-  const b = toBytes(bytes);
-  return b && b.length === 5 && b[0] === ACK ? new DataView(b.buffer, b.byteOffset, 5).getUint32(1) : null;
-}
+/** A whole frame from objects (tests): `cells` as encodeSegment takes them. */
+export const encodeSnapshot = ({ tick, at, size, cells, dropped = [] }) => encodeFrame({ tick, at, dropped, segments: cells.map((c) => encodeSegment(c, size)) });
+
 function toBytes(x) {
   if (x instanceof Uint8Array) return x;
   if (x instanceof ArrayBuffer) return new Uint8Array(x);
@@ -143,13 +110,14 @@ export function viewOf(uid, q) {
 
 /**
  * The client side. `size` is the zone's (welcome.size), `slots` the welcome's `{ uid: slot }`; `slot(uid, s)`
- * on a join, `forget(uid)` on a leave. `decode(bytes)` gives `{ tick, at, snapshots, fulls, misses }`, one
- * snapshot per cell in the frame; the caller acks `tick`. A record whose baseline it no longer has is a miss
- * (dropped; the server's window and ours make that not happen in practice).
+ * on a join, `forget(uid)` on a leave. `decode(bytes)` gives `{ tick, at, snapshots, fulls, misses, bytes }`,
+ * one snapshot per cell in the frame (every entity held in it). A delta for a slot it does not hold is a miss
+ * (dropped; with in-order delivery it does not happen).
  */
 export function createDecoder({ size, slots = {} }) {
   const uids = new Map(Object.entries(slots).map(([u, s]) => [s, u]));
-  const ents = new Map(); // uid -> { cell, q, hist: Map tick -> q }
+  const ents = new Map(); // uid -> { cell, q }
+  const dropCell = (cell) => { for (const [u, e] of ents) if (e.cell === cell) ents.delete(u); };
   return {
     slot(uid, s) { uids.set(s, uid); },
     forget(uid) { ents.delete(uid); for (const [s, u] of uids) if (u === uid) uids.delete(s); },
@@ -158,18 +126,17 @@ export function createDecoder({ size, slots = {} }) {
       const b = toBytes(bytes);
       if (!b || b[0] !== SNAPSHOT) return null;
       const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-      let o = 1;
-      const tick = v.getUint32(o); o += 4;
-      const at = v.getFloat64(o); o += 8;
-      const nr = v.getUint16(o); o += 2;
-      for (let k = 0; k < nr; k++) { const u = uids.get(v.getUint16(o)); o += 2; if (u) ents.delete(u); }
-      const nc = v.getUint8(o); o += 1;
-      const snapshots = [];
+      const tick = v.getUint32(1), at = v.getFloat64(5), nd = v.getUint16(13);
+      let o = 15;
+      for (let k = 0; k < nd; k++) { dropCell(`x${v.getUint8(o)}z${v.getUint8(o + 1)}`); o += 2; }
+      const ns = v.getUint8(o); o += 1;
+      const order = [];
       let fulls = 0, misses = 0;
-      for (let c = 0; c < nc; c++) {
-        const i = v.getUint8(o), j = v.getUint8(o + 1), complete = v.getUint8(o + 2) & 1, count = v.getUint16(o + 3); o += CELL_HEADER;
+      for (let c = 0; c < ns; c++) {
+        const i = v.getUint8(o), j = v.getUint8(o + 1), flags = v.getUint8(o + 2), count = v.getUint16(o + 3), nl = v.getUint16(o + 5); o += CELL_HEADER;
         const cell = `x${i}z${j}`, ox = centre(i, size), oz = centre(j, size);
-        const listed = new Set(), out = [];
+        if (flags & FULL) dropCell(cell);
+        if (!order.includes(cell)) order.push(cell);
         for (let r = 0; r < count; r++) {
           const s = v.getUint16(o), m = v.getUint8(o + 2), back = v.getUint8(o + 3); o += RECORD;
           const f = {};
@@ -181,22 +148,16 @@ export function createDecoder({ size, slots = {} }) {
           if (m & 32) { f.seq = v.getUint32(o); o += 4; }
           const uid = uids.get(s);
           if (!uid) continue;
-          let e = ents.get(uid), base = null;
-          if (back) {
-            base = e?.hist.get(tick - back);
-            if (!base) { misses++; continue; }
-          } else fulls++;
-          const q = base ? { ...base, ...f } : f;
-          if (!e || !back) { e = { cell, q, hist: new Map() }; ents.set(uid, e); }
-          e.cell = cell; e.q = q; e.hist.set(tick, q);
-          for (const t of e.hist.keys()) if (t < tick - WINDOW - 8) e.hist.delete(t);
-          listed.add(uid);
-          out.push(viewOf(uid, q));
+          if (!back) { fulls++; ents.set(uid, { cell, q: f }); continue; }
+          const e = ents.get(uid);
+          if (!e) { misses++; continue; }
+          e.cell = cell; e.q = { ...e.q, ...f };
         }
-        if (complete) for (const [uid, e] of ents) if (e.cell === cell && !listed.has(uid)) out.push(viewOf(uid, e.q));
-        out.sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
-        snapshots.push({ tick, at, cell, entities: out });
+        for (let k = 0; k < nl; k++) { const u = uids.get(v.getUint16(o)); o += 2; if (u && ents.get(u)?.cell === cell) ents.delete(u); }
       }
+      const by = new Map(order.map((c) => [c, []]));
+      for (const [uid, e] of ents) by.get(e.cell)?.push(viewOf(uid, e.q));
+      const snapshots = order.map((cell) => ({ tick, at, cell, entities: by.get(cell).sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0)) }));
       return { tick, at, snapshots, fulls, misses, bytes: b.length };
     },
   };

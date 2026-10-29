@@ -19,7 +19,7 @@ Plain JS, no DOM. JSON over one WebSocket at `/ws`, one message object per frame
 | `transfer` | `zone, resume`: a portal took this player out of its zone; say `hello { resume, zone, character }` again on the same socket to arrive there (same uid and account) |
 | `join` | `uid, name, character`: another player came in |
 | `leave` | `uid`: another player left |
-| `snapshot` | **binary since step 7** (below); decodes to `tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq }]`: one per cell of the player's area of interest (its cell and the neighbours), after every 20 Hz tick, movers only; the in-process server's shape (`sim/index.js`) plus `at` (the server's `Date.now()` at that tick) and, on players only, `seq` (the last one the server applied for that player; absent before its first sequenced intent, never on npcs) |
+| `snapshot` | **binary** (below; shared cell frames since step 9); decodes to `tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq }]`: one per cell of the player's area of interest (its cell and the neighbours), after every 20 Hz tick, movers only; the in-process server's shape (`sim/index.js`) plus `at` (the server's `Date.now()` at that tick) and, on players only, `seq` (the last one the server applied for that player; absent before its first sequenced intent, never on npcs) |
 | `event` | `tick, type, ...`: the sim's `interact` (`target, verb, ok, reason`) and `blocked` (`reason, by, x, z`) for this player |
 | `pong` | `at` (echoed), `tick`, `serverAt` (the server's `Date.now()`) |
 | `error` | `reason`, `code` (`auth`, `limit`, `malformed`, `full`; `CODES` in `protocol.js`); sent before the server closes the socket |
@@ -33,47 +33,64 @@ Plain JS, no DOM. JSON over one WebSocket at `/ws`, one message object per frame
 - `at` and `serverAt` let a client keep a clock offset (`serverAt` against its own clock, the round trip
   halved, a median of the last few) and so draw snapshots on the server's time.
 
-## Binary frames (step 7, `codec.js`)
+## Binary frames (`codec.js`; shared cell frames since step 9)
 
-`snapshot` and `ack` are binary WebSocket frames; everything else stays JSON. The first byte is the type
-(1 snapshot, 2 ack). Big-endian throughout (DataView's default).
+`snapshot` is the one binary WebSocket frame, server to client; everything else stays JSON, and a client
+sends JSON only (a binary frame from a client closes its socket as malformed). Big-endian throughout
+(DataView's default).
 
-**ack** (client to server, 5 bytes): `u8 2`, `u32 tick`, the frame the client just applied. One a tick; the
-server meters acks on their own (60 a second) and against the 16 KB a second, not the 40 messages.
+**The per-cell rule.** Each cell of a room encodes one **segment** per tick: a delta against that cell's
+own previous tick, made once and shared by every client that sees the cell. Nothing is acked: a WebSocket is
+TCP, so a client that was sent every segment of a cell holds that cell's state. A client's frame is the
+segments of the cells it sees, concatenated: its 3x3 every tick, kept cells beyond it every other tick (as
+the two deltas since it last had them). A cell the client does not hold comes as a **full segment**: when
+it enters the view, after a `welcome` (a join, a resume, a transfer: a new decoder holds nothing), or when
+the client missed more of it than the cell keeps (8 ticks), or when the missed deltas are bigger than the
+full one. The player's own cell goes every tick, so its own record is in every frame.
 
-**snapshot** (server to client, one per tick per client, at most 1200 bytes plus the player's own record):
+**The cap.** A frame aims at 1200 bytes (`CAP`). The own cell always goes; the other due cells go in
+priority order (each tick waited +1 + 20/(1 + distance to the cell's centre); sent resets it) while they
+fit. A cell that does not fit waits for a later tick and then gets what it missed, deltas or full, so
+nothing is lost. If nothing but the own cell fitted, the top waiting cell goes anyway (that frame is over
+the cap), so a crowded own cell does not starve its neighbours.
+
+**snapshot** (server to client, one per tick per client):
 
 | Bytes | Field |
 | --- | --- |
 | 1 | `u8 1` |
 | 4 | `u32 tick` |
 | 8 | `f64 at`, the server's `Date.now()` at that tick |
-| 2 | `u16` removed count, then `u16` slot each: entities that left this client's view |
-| 1 | `u8` cell count, then per cell: |
+| 2 | `u16` dropped count, then `u8 i, u8 j` each: cells that left this client's view (it forgets what it held there) |
+| 1 | `u8` segment count, then per segment (a cell may have two, oldest first): |
 | 1+1 | `u8 i`, `u8 j` (the cell `x<i>z<j>`) |
-| 1 | `u8 flags`: bit 0 `complete` (every changed entity in this cell is here; the client repeats the unchanged ones it holds) |
-| 2 | `u16` record count, then per record: |
+| 1 | `u8 flags`: bit 0 `full` (the client drops what it holds in this cell first) |
+| 2 | `u16` record count |
+| 2 | `u16` left count |
+| | the records, then the left slots (`u16` each: entities in this cell last tick and not now, moved on or gone; a client drops one only if it still holds it in this cell) |
+
+Each record (the layout of step 7, unchanged):
+
+| Bytes | Field |
+| --- | --- |
 | 2 | `u16 slot` (the uid's slot: `welcome.slots`, `join.slot`) |
 | 1 | `u8 mask`: 1 x, 2 z, 4 y, 8 yaw, 16 anim, 32 seq: the fields that follow |
-| 1 | `u8 base`: ticks back to the baseline this is a delta against; 0 = no baseline (all fields present) |
+| 1 | `u8 base`: 0 the whole entity (all fields: it is new to this cell, or the segment is full); 1 a delta on what the client holds for that slot |
 | 2, 2 | `i16 x`, `i16 z`: 2 mm steps from the cell's centre (a cell is 50 m; +-65 m fits) |
 | 2 | `i16 y`: 1 cm steps, absolute |
 | 2 | `u16 yaw`: a full turn in 65536 |
 | 1 | `u8 anim`: an index into `ANIMS` (`idle walk run death jump cast hit`, append only; 255 unknown) |
 | 4 | `u32 seq` (players only) |
 
-A missing field in a delta is the baseline's. Baselines are per entity: the server logs each frame's
-records by tick, and the ack for that tick makes them that entity's baseline; an entity equal to its
-baseline is not sent. A baseline older than 32 ticks (`WINDOW`) is not used: that record comes whole. An
-entity entering the view comes whole; one leaving is in `removed` until a frame carrying it is acked.
-Changed entities wait on a priority (each tick +1 + 20/(1 + distance)); the frame takes them in that order
-until the cap, the player itself always. `welcome` gains `size` (the zone's, for the cell centres) and
-`slots` (`{ uid: slot }` for every mover); `join` gains `slot`.
+A missing field in a delta is what the client holds. An entity changing cells comes whole in its new cell
+and is in the old cell's left list. `welcome` carries `size` (the zone's, for the cell centres) and `slots`
+(`{ uid: slot }` for every mover); `join` gains `slot`.
 
 `createDecoder({ size, slots })` keeps what the client holds and hands back the JSON-era snapshots (one per
-cell, `{ tick, at, cell, entities }`), so nothing above it changed. Area of interest (server side,
-`dream-server/src/aoi.js`): the 3x3 cells around the player at 20 Hz; a cell it walks out of stays,
-at 10 Hz, until it is 8 m past the band where that cell was a neighbour.
+cell in the frame, every entity it holds there, `{ tick, at, cell, entities }`), so nothing above it
+changed. Area of interest (server side, `dream-server/src/aoi.js`): the 3x3 cells around the player at
+20 Hz; a cell it walks out of stays, at 10 Hz, until it is 8 m past the band where that cell was a
+neighbour.
 
 ## Prediction (`predict.js`)
 
