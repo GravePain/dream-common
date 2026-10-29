@@ -12,7 +12,35 @@ export const BASE = `${location.origin}/dl`;
 const KIND_ICON = { effect: '✺', scene: '⛰', model: '◆', character: '☺', texture: '▦', sprite: '◩', image: '▣', audio: '♪', package: '▤', palette: '◐', generator: '⚙' };
 const KIND_NAME = { all: 'All', scene: 'Scenes', effect: 'Effects', model: 'Models', texture: 'Textures', sprite: 'Sprites', generator: 'Gens', palette: 'Palettes', image: 'Images', audio: 'Sounds', package: 'Packs' };
 
-export const fileUrl = (place, p) => `${BASE}/api/file?place=${place}&path=${encodeURIComponent(p)}`;
+export const fileUrl = (place, p) => `${BASE}/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(p)}`;
+
+/**
+ * The one way to read the library's listing, shared by every tool: every existing place (or the ones
+ * given, by slug or id), each item tagged with its place. `kind` is one kind or a list ("model" or ["model", "image"]).
+ * Each item carries `place` (the place's id, i.e. its index, as tools have always used it), `placeId`
+ * (its stable slug, "creations") and `placeName`; the server accepts either as place=.
+ * Resolves to { places, items, truncated } where truncated names the places whose listing was cut short.
+ * Throws when the library is not reachable.
+ */
+export async function listLibrary({ kind = null, places = null } = {}) {
+  const get = async (url) => {
+    const r = await fetch(BASE + url);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+    return r.json();
+  };
+  const all = await get('/api/places');
+  const want = places ? all.filter((p) => places.includes(p.slug) || places.includes(p.id)) : all.filter((p) => p.exists);
+  const kinds = kind ? (Array.isArray(kind) ? kind : [kind]).join(',') : '';
+  const lists = await Promise.all(want.map((p) => get(`/api/list?wrap=1&place=${encodeURIComponent(p.slug)}${kinds ? `&kind=${encodeURIComponent(kinds)}` : ''}`).catch(() => ({ items: [], truncated: false }))));
+  const items = [], truncated = [];
+  lists.forEach((l, k) => {
+    const p = want[k];
+    if (l.truncated) truncated.push(p.slug);
+    // place stays the index the tools have always used (links, saved records); placeId is the stable id
+    for (const it of l.items) items.push({ ...it, place: p.id, placeId: p.slug, placeName: p.name });
+  });
+  return { places: all, items, truncated };
+}
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -50,8 +78,11 @@ function mountPanel({ full = false } = {}) {
 
 export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenModel = () => {}, onOpenPalette = () => {}, onOpenGenerator = () => {}, onOpenImage = null, full = false } = {}) {
   const problems = new Map(); // generator files that failed to load, by place:path
-  const st = { places: [], place: 0, items: [], kind: 'all', tags: new Set(), search: '', online: false };
+  const st = { places: [], place: null, items: [], kind: 'all', tags: new Set(), search: '', online: false };
   const { q } = mountPanel({ full });
+  // st.place is the place's id (its index), as the hosts have always been handed it; requests use its slug
+  const savePlace = () => (st.places.find((p) => p.save) ?? st.places[0])?.id ?? 0;
+  const current = () => st.places.find((p) => p.id === st.place);
   let audio = null, playing = null;
 
   async function json(url, opts) {
@@ -66,6 +97,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
     try {
       st.places = await json('/api/places');
       st.online = true;
+      if (!st.places.some((p) => p.id === st.place)) st.place = savePlace();
     } catch {
       st.online = false;
     }
@@ -78,7 +110,9 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
   async function loadItems() {
     q('items').innerHTML = '<p class="dl-hint">Reading…</p>';
     try {
-      st.items = await json(`/api/list?place=${st.place}`);
+      const r = await json(`/api/list?wrap=1&place=${encodeURIComponent(current()?.slug ?? st.place)}`);
+      st.items = r.items;
+      st.truncated = r.truncated;
     } catch (e) {
       st.items = [];
       q('items').innerHTML = `<p class="dl-hint">${esc(e.message)}</p>`;
@@ -104,8 +138,8 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
         x.onclick = async (e) => {
           e.stopPropagation();
           if (!confirm(`Remove "${p.name}" from the library? The folder and its files stay as they are.`)) return;
-          await json(`/api/places?place=${p.id}`, { method: 'DELETE' });
-          if (st.place === p.id) st.place = 0;
+          await json(`/api/places?place=${encodeURIComponent(p.slug)}`, { method: 'DELETE' });
+          if (st.place === p.id) st.place = savePlace();
           loadPlaces();
         };
         b.append(x);
@@ -143,7 +177,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
   function renderItems() {
     const box = q('items'), list = visible();
     box.innerHTML = list.length ? '' : `<p class="dl-hint">${st.items.length ? 'Nothing matches.' : 'Empty. Save a piece and it lands here.'}</p>`;
-    q('count').textContent = `${list.length} of ${st.items.length}`;
+    q('count').textContent = `${list.length} of ${st.items.length}${st.truncated ? '+ (list cut short)' : ''}`;
     for (const it of list) {
       const card = document.createElement('div');
       card.className = `dl-item ${it.kind}`;
@@ -162,7 +196,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
       const problem = problems.get(`${st.place}:${it.path}`);
       tags.textContent = problem ? '⚠ ' + problem : [it.meta.version > 1 ? `v${it.meta.version}` : '', ...it.tags].filter(Boolean).join(' · ');
       card.append(art, name, tags);
-      if (!st.places[st.place]?.readonly) {
+      if (!current()?.readonly) {
         const edit = document.createElement('button');
         edit.className = 'dl-edit';
         edit.textContent = '✎';
@@ -270,7 +304,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
       } catch (e) { alert(`Could not import ${f.name}: ${e.message}`); }
     }
     count.textContent = was;
-    st.place = 0;
+    st.place = savePlace();
     renderPlaces();
     loadItems();
   }
@@ -290,12 +324,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
   const listAll = async (kind) => {
     await ready;
     if (!st.online) return [];
-    const out = [];
-    for (const p of st.places) {
-      const items = await json(`/api/list?place=${p.id}`).catch(() => []);
-      for (const i of items) if (!kind || i.kind === kind) out.push({ ...i, place: p.id });
-    }
-    return out;
+    return (await listLibrary({ kind }).catch(() => ({ items: [] }))).items;
   };
   return {
     BASE,
@@ -304,8 +333,8 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
     toggle: () => document.body.classList.toggle('dl-open'),
     show: () => document.body.classList.add('dl-open'),
     /** After a save: show the save place and its new item. */
-    async refreshSaved() { st.place = 0; renderPlaces(); await loadItems(); },
-    refreshIfShowing(place) { if (st.place === place) loadItems(); },
+    async refreshSaved() { st.place = savePlace(); renderPlaces(); await loadItems(); },
+    refreshIfShowing(place) { if (st.place === place || current()?.slug === place) loadItems(); },
     /** All tags in the current place, for suggestions. */
     tags: () => [...new Set(st.items.flatMap((i) => i.tags))],
     /** Every item of a kind across all places (e.g. "generator", "model", "image"). */
@@ -315,8 +344,8 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
       return (await listAll('palette')).map((i) => ({ ...i.palette, name: i.name, tags: i.tags, path: i.path, place: i.place }));
     },
     flag(it, message) { problems.set(`${it.place}:${it.path}`, message); },
-    versions: (place, p) => json(`/api/versions?place=${place}&path=${encodeURIComponent(p)}`),
-    async find(place, p) { return (await json(`/api/list?place=${place}`)).find((i) => i.path === p); },
+    versions: (place, p) => json(`/api/versions?place=${encodeURIComponent(place)}&path=${encodeURIComponent(p)}`),
+    async find(place, p) { return (await json(`/api/list?place=${encodeURIComponent(place)}`)).find((i) => i.path === p); },
     /** Save a piece: { name, ext?, data (base64), parts?, thumb?, meta, folder?, overwrite? }. */
     save: (body) => post('/api/save', body),
     savePalette: (body) => post('/api/save-palette', body),
