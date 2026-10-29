@@ -142,13 +142,20 @@ function moveBody(sim, e, dx, dz, speed) {
   if (al > max) { e.vx += (ax / al) * max; e.vz += (az / al) * max; } else { e.vx = tx; e.vz = tz; }
   if (speed > 0.01) e.yaw = turnToward(e.yaw, yawOf(dx, dz), MOVE.turn * dt);
 
-  let nx = e.x + e.vx * dt, nz = e.z + e.vz * dt, blocked = null;
+  const px = e.x + e.vx * dt, pz = e.z + e.vz * dt;
+  let nx = px, nz = pz, blocked = null;
   const half = world.size / 2 - MOVE.radius;
   if (Math.abs(nx) > half || Math.abs(nz) > half) { nx = clamp(nx, -half, half); nz = clamp(nz, -half, half); blocked = 'edge'; }
   if (e.grounded && tooSteep(g, e, nx, nz)) { nx = e.x; nz = e.z; e.vx = 0; e.vz = 0; blocked = 'slope'; }
-  const r = resolve(world, { x: nx, y: e.y, z: nz }, MOVE.radius, MOVE.height, e.uid);
+  // tested from the lower of the feet and the destination's ground, so a fast step down a bank still meets a low rock
+  const r = resolve(world, { x: nx, y: Math.min(e.y, g.heightAt(nx, nz)), z: nz }, MOVE.radius, MOVE.height, e.uid);
   if (r.by) { blocked = blocked ?? 'collider'; nx = r.x; nz = r.z; }
-  if (blocked === 'collider' || blocked === 'edge') { e.vx = (nx - e.x) / dt; e.vz = (nz - e.z) / dt; }
+  if (blocked === 'collider' || blocked === 'edge') {
+    // slide: drop the velocity into the wall (along the push-out), never faster than this tick's intended speed
+    const cx = nx - px, cz = nz - pz, cl = Math.hypot(cx, cz), into = cl > 1e-9 ? (e.vx * cx + e.vz * cz) / cl : 0;
+    if (into < 0) { e.vx -= (cx / cl) * into; e.vz -= (cz / cl) * into; }
+    const v = Math.hypot(e.vx, e.vz); if (v > speed) { const k = v > 1e-9 ? speed / v : 0; e.vx *= k; e.vz *= k; }
+  }
 
   const crossed = world.place(e, nx, nz);
   const floor = g.heightAt(nx, nz);

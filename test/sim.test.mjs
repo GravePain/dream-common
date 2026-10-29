@@ -54,6 +54,58 @@ test('a wall of boxes stops a walking player', () => {
   assert.ok(walkable(sim.world, 0, 5));
 });
 
+test('a player running into a wall of boxes slides along it, never above run speed, blocked once', () => {
+  const max = MOVE.walk * MOVE.run;
+  const wall = Array.from({ length: 21 }, (_, k) => box(`b${k}`, -10 + k, 5));
+  const sim = createSim({ zone: makeZone(() => 0), cells: [cell(wall)] });
+  const blocked = [];
+  sim.on('blocked', (ev) => blocked.push(ev));
+  sim.join('p1', { x: -5, z: 0 });
+  sim.intent('p1', { type: 'move', dir: { x: Math.SQRT1_2, z: Math.SQRT1_2 }, run: true });
+  const p = () => sim.world.get('p1');
+  let top = 0;
+  for (let t = 0; t < 40; t++) { stepOnce(sim); top = Math.max(top, Math.hypot(p().vx, p().vz)); assert.ok(p().z <= 5 - 0.5 - MOVE.radius + 1e-6, `in the wall at ${p().z}`); }
+  assert.ok(top <= max + 1e-9, `flung at ${top} m/s`);
+  assert.ok(p().x > 0, `did not slide, x ${p().x}`);
+  assert.equal(blocked.length, 1, blocked.map((b) => `${b.tick} ${b.reason}`).join(', '));
+  assert.equal(blocked[0].reason, 'collider');
+  // head on into a 0.8 m notch between two boxes, narrower than the player: the old push-out ran above max
+  const notch = createSim({ zone: makeZone(() => 0), cells: [cell([box('a', -0.9, 4), box('b', 0.9, 4)])] });
+  notch.join('p1', { x: 0.3, z: 0 });
+  notch.intent('p1', { type: 'move', dir: { x: 0, z: 1 }, run: true });
+  top = 0;
+  for (let t = 0; t < 40; t++) { stepOnce(notch); const q = notch.world.get('p1'); top = Math.max(top, Math.hypot(q.vx, q.vz)); }
+  assert.ok(top <= max + 1e-9, `flung at ${top} m/s in the notch`);
+});
+
+test('an npc wandering into a box is never faster than its walk speed', () => {
+  // downhill into a box whose top is 0.15 m below its feet at contact: the old sim skipped it, let the npc
+  // walk 0.3 m in, then pushed it out in one tick at about 6 m/s
+  const h = (x, z) => -0.5 * z, contact = 4 - 0.5 - MOVE.radius;
+  const b = box('b', 0, 4, 2, h(0, contact) - 0.15 - h(0, 4), 1);
+  const npc = { uid: 'n1', template: 'guard', transform: { x: 0, y: 0, z: 0 }, components: { npc: { mode: 'patrol', points: [{ x: 0, z: 0 }, { x: 0, z: 8 }], speed: 2 } } };
+  const sim = createSim({ zone: makeZone(h), cells: [cell([npc, b])] });
+  const e = sim.world.get('n1');
+  let top = 0, hit = false;
+  for (let t = 0; t < 200; t++) { stepOnce(sim); hit = hit || !!e.blocked; top = Math.max(top, Math.hypot(e.vx, e.vz)); }
+  assert.ok(hit, 'never reached the box');
+  assert.ok(top <= 2 + 1e-9, `flung at ${top} m/s`);
+});
+
+test('a box 0.3 m below the feet on a slope blocks the first step into it', () => {
+  // ground falls 0.5 m per metre toward +z; the box stands with its top 0.3 m below the player's feet at contact
+  const h = (x, z) => -0.5 * z;
+  const bz = 3, half = 0.5, sz = 1;
+  const contact = bz - half - MOVE.radius; // where the player's capsule meets the box face
+  const topY = h(0, contact) - 0.3, groundY = h(0, bz);
+  const b = box('b', 0, bz, 2, topY - groundY, sz);
+  const sim = createSim({ zone: makeZone(h), cells: [cell([b])] });
+  sim.join('p1', { x: 0, z: 0 });
+  sim.intent('p1', { type: 'move', dir: { x: 0, z: 1 } });
+  for (let t = 0; t < 60; t++) { stepOnce(sim); const p = sim.world.get('p1'); assert.ok(p.z <= contact + 1e-6, `stepped into the box at z ${p.z} (tick ${t})`); }
+  assert.ok(sim.world.get('p1').z > contact - 0.05);
+});
+
 test('a 60 degree slope stops a walking player', () => {
   const rise = Math.tan(Math.PI / 3);
   const sim = createSim({ zone: makeZone((x, z) => (z > 10 ? (z - 10) * rise : 0)) });

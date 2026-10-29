@@ -12,6 +12,8 @@ import { toLocal, toWorld, clamp } from './math.js';
 
 export const MAX_SLOPE = Math.PI / 4; // 45 degrees
 const REACH = 8; // metres: the widest collider looked for around a point (plus the mover's radius)
+/** Metres below the feet a shape still blocks (MOVE.snap): a boulder on lower ground stops a step down onto it. */
+export const STEP_DOWN = 0.4;
 
 /** The world-space shape of an entity's collider, or null when it has none (or it is a trigger). */
 export function shapeOf(e) {
@@ -69,7 +71,7 @@ function pushOut(sh, x, z, radius, y0, y1) {
  */
 export function resolve(world, pos, radius, height, ignore) {
   let x = pos.x, z = pos.z, by = null;
-  const y0 = pos.y + 0.05, y1 = pos.y + height; // a hair above the feet, so a shape's flat top can be stood on later
+  const y0 = pos.y - STEP_DOWN, y1 = pos.y + height; // reaches down to the snap, so a shape on the lower bank blocks
   const shapes = world.near(x, z, REACH + radius).filter((e) => e.uid !== ignore).map(shapeOf).filter(Boolean);
   for (let pass = 0; pass < 3; pass++) {
     let moved = false;

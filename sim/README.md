@@ -28,7 +28,8 @@ Tests: `node --test test/sim.test.mjs` from `dream-common`.
   in uid order. So `replay(opts, sim.log, ticks)` gives the same positions bit for bit (tested).
 - Each tick a mover accelerates toward its wanted velocity, turns toward where it goes, is stopped by the
   zone edge, by ground climbing steeper than 45 degrees (`MAX_SLOPE`; downhill is allowed) and by solid
-  colliders, then falls under gravity or snaps to the ground (within 0.4 m). `y` is always the ground
+  colliders (on a collider or edge it slides: the velocity into the wall is dropped and speed never goes above
+  the tick's intended speed), then falls under gravity or snaps to the ground (within 0.4 m). `y` is always the ground
   under it while walking. Numbers are in `MOVE` (walk 4 m/s, run x1.8).
 - Events go to `sim.on(type, cb)`: `enter cell` `{ uid, from, to }`, `interact` `{ uid, target, verb, ok,
   reason }`, `blocked` `{ uid, reason: edge | slope | collider, by }` (on the tick it starts), and `tick`.
@@ -52,7 +53,9 @@ From `collider` (`web/schema/components.js`), times the entity's scale, standing
 is `size` x, y, z full extents turned by the entity's yaw; a sphere has radius `size.x`; a capsule or
 cylinder is `max(size.x, size.z)` wide and `size.y` tall. Triggers are not solid. The player is an
 upright capsule (radius 0.35, height 1.8). Shapes are only tested where their height span meets the
-player's, so later a player can stand on a low one; standing on tops is not built yet.
+player's; that span reaches `STEP_DOWN` (0.4 m, `MOVE.snap`) below the feet, so a shape on lower ground still
+blocks a step down onto it, and a step is tested from the lower of the feet and the destination's ground (a run
+down a steep bank drops further than the margin in one tick). Standing on tops is not built yet.
 
 ## The local server, and how the client will wrap it
 
