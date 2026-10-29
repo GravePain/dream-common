@@ -8,7 +8,8 @@
 //                      ping { at }                                             at: the client's clock (ms)
 //   server -> client   welcome { uid, tick, zone, spawn, players: [{ uid, name, character }], resume, exp, resumed? }
 //                      join { uid, name, character }    leave { uid }
-//                      snapshot { tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq? }] }   per cell of interest
+//                      snapshot: binary since step 7 (codec.js), decoded to { tick, at, cell, entities } per cell
+//                      (welcome also carries size and slots, join a slot; the client acks each frame, binary)
 //                      event { tick, type, ... }        the sim's interact and blocked, for that player
 //                      pong { at, tick, serverAt }      error { reason, code }   code: one of CODES
 import { checkIntent } from '../sim/index.js';
