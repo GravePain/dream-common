@@ -55,13 +55,18 @@ export function createWorld({ zone, cells = [], templates = [] }) {
     e.cell = to;
     return { from, to };
   }
-  /** Entities whose position is within r of (x, z), in uid order (deterministic). */
-  function near(x, z, r) {
-    const out = [], lo = cellOf(x - r, z - r, size), hi = cellOf(x + r, z + r, size);
+  /**
+   * Entities whose position is within r of (x, z), in uid order (deterministic). `keep(e)`, when given, is
+   * asked first: collision asks only for solid shapes, so a crowd of movers is not measured and sorted.
+   */
+  function near(x, z, r, keep) {
+    const out = [], lo = cellOf(x - r, z - r, size), hi = cellOf(x + r, z + r, size), r2 = r * r;
     for (let i = lo.i; i <= hi.i; i++) for (let j = lo.j; j <= hi.j; j++) {
       for (const uid of buckets.get(`x${i}z${j}`) ?? []) {
         const e = entities.get(uid);
-        if (Math.hypot(e.x - x, e.z - z) <= r) out.push(e);
+        if (keep && !keep(e)) continue;
+        const dx = e.x - x, dz = e.z - z;
+        if (dx * dx + dz * dz <= r2) out.push(e);
       }
     }
     return out.sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));

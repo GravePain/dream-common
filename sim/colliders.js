@@ -15,6 +15,8 @@ const REACH = 8; // metres: the widest collider looked for around a point (plus 
 /** Metres below the feet a shape still blocks (MOVE.snap): a boulder on lower ground stops a step down onto it. */
 export const STEP_DOWN = 0.4;
 
+const solid = (e) => { const c = e.components?.collider; return !!c && !c.trigger; };
+
 /** The world-space shape of an entity's collider, or null when it has none (or it is a trigger). */
 export function shapeOf(e) {
   const c = e.components?.collider;
@@ -72,7 +74,7 @@ function pushOut(sh, x, z, radius, y0, y1) {
 export function resolve(world, pos, radius, height, ignore) {
   let x = pos.x, z = pos.z, by = null;
   const y0 = pos.y - STEP_DOWN, y1 = pos.y + height; // reaches down to the snap, so a shape on the lower bank blocks
-  const shapes = world.near(x, z, REACH + radius).filter((e) => e.uid !== ignore).map(shapeOf).filter(Boolean);
+  const shapes = world.near(x, z, REACH + radius, (e) => e.uid !== ignore && solid(e)).map(shapeOf);
   for (let pass = 0; pass < 3; pass++) {
     let moved = false;
     for (let k = 0; k < shapes.length; k++) {

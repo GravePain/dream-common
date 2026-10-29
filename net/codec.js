@@ -44,7 +44,8 @@ export function maskOf(q, base) {
 const SIZES = Array.from({ length: 64 }, (_, mask) => RECORD + FIELDS.reduce((n, f, i) => n + (mask & (1 << i) ? BYTES[f] : 0), 0));
 export const recordSize = (mask) => SIZES[mask];
 /** A cell's centre in POS units, from its i, j and the zone's size. */
-const centre = (k, size) => Math.round((-size / 2 + (k + 0.5) * CELL) / POS);
+/** A cell's centre along one axis in POS units, from its index and the zone's size. */
+export const centre = (k, size) => Math.round((-size / 2 + (k + 0.5) * CELL) / POS);
 export const cellIJ = (name) => { const m = /^x(\d+)z(\d+)$/.exec(name); return m ? { i: +m[1], j: +m[2] } : null; };
 
 /**
@@ -74,6 +75,38 @@ export function encodeSnapshot({ tick, at, size, cells, removed = [] }) {
       if (m & 8) { v.setUint16(o, q.yaw); o += 2; }
       if (m & 16) { v.setUint8(o, q.anim); o += 1; }
       if (m & 32) { v.setUint32(o, q.seq); o += 4; }
+    }
+  }
+  return buf;
+}
+
+/**
+ * The same frame from columns, for the server's per-client loop (dream-server/src/deltas.js) where objects
+ * per record cost too much. `M` holds the tick's movers as columns (slot, qx, qz, qy, qyaw, qanim, qseq);
+ * `sel` the chosen mover indices grouped by cell, `cells: [{ i, j, complete, count }]` in that order;
+ * `mask` and `base` per mover index.
+ */
+export function encodeColumns({ tick, at, size, removed, cells, sel, nsel, M, mask, base }) {
+  let n = HEADER + removed.length * 2 + cells.length * CELL_HEADER;
+  for (let k = 0; k < nsel; k++) n += SIZES[mask[sel[k]]];
+  const buf = new Uint8Array(n), v = new DataView(buf.buffer);
+  let o = 0;
+  v.setUint8(o, SNAPSHOT); v.setUint32(o + 1, tick >>> 0); v.setFloat64(o + 5, at); v.setUint16(o + 13, removed.length); o += 15;
+  for (const s of removed) { v.setUint16(o, s); o += 2; }
+  v.setUint8(o, cells.length); o += 1;
+  let k = 0;
+  for (const c of cells) {
+    const ox = centre(c.i, size), oz = centre(c.j, size);
+    v.setUint8(o, c.i); v.setUint8(o + 1, c.j); v.setUint8(o + 2, c.complete ? 1 : 0); v.setUint16(o + 3, c.count); o += CELL_HEADER;
+    for (const end = k + c.count; k < end; k++) {
+      const x = sel[k], m = mask[x];
+      v.setUint16(o, M.slot[x]); v.setUint8(o + 2, m); v.setUint8(o + 3, base[x]); o += RECORD;
+      if (m & 1) { v.setInt16(o, clamp16(M.qx[x] - ox)); o += 2; }
+      if (m & 2) { v.setInt16(o, clamp16(M.qz[x] - oz)); o += 2; }
+      if (m & 4) { v.setInt16(o, M.qy[x]); o += 2; }
+      if (m & 8) { v.setUint16(o, M.qyaw[x]); o += 2; }
+      if (m & 16) { v.setUint8(o, M.qanim[x]); o += 1; }
+      if (m & 32) { v.setUint32(o, M.qseq[x]); o += 4; }
     }
   }
   return buf;
