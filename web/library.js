@@ -10,7 +10,7 @@
 // the Library's API, always through the page's own origin (/dl/ is proxied to port 5230 by every Dream server)
 export const BASE = `${location.origin}/dl`;
 const KIND_ICON = { effect: '✺', scene: '⛰', model: '◆', character: '☺', texture: '▦', sprite: '◩', image: '▣', audio: '♪', package: '▤', palette: '◐', generator: '⚙' };
-const KIND_NAME = { all: 'All', scene: 'Scenes', effect: 'Effects', model: 'Models', texture: 'Textures', sprite: 'Sprites', generator: 'Gens', palette: 'Palettes', image: 'Images', audio: 'Sounds', package: 'Packs' };
+const KIND_NAME = { all: 'All', scene: 'Scenes', effect: 'Effects', model: 'Models', texture: 'Textures', sprite: 'Sprites', ui: 'Game UI', generator: 'Gens', palette: 'Palettes', image: 'Images', audio: 'Sounds', package: 'Packs' };
 
 export const fileUrl = (place, p) => `${BASE}/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(p)}`;
 
@@ -79,7 +79,7 @@ function mountPanel({ full = false } = {}) {
   return { root, toggle, q };
 }
 
-export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenModel = () => {}, onOpenPalette = () => {}, onOpenGenerator = () => {}, onOpenImage = null, full = false } = {}) {
+export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenUi = null, onOpenModel = () => {}, onOpenPalette = () => {}, onOpenGenerator = () => {}, onOpenImage = null, full = false } = {}) {
   const problems = new Map(); // generator files that failed to load, by place:path
   const st = { places: [], place: null, items: [], kind: 'all', tags: new Set(), search: '', online: false };
   const { q } = mountPanel({ full });
@@ -188,6 +188,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
       art.className = 'dl-art';
       if (it.thumb) art.style.backgroundImage = `url("${fileUrl(st.place, it.path + '.thumb.png')}&v=${it.mtime}")`;
       else if (it.kind === 'image' || it.kind === 'texture') art.style.backgroundImage = `url("${fileUrl(st.place, it.path)}")`;
+      else if (it.kind === 'ui' && it.parts?.includes('.png')) art.style.backgroundImage = `url("${fileUrl(st.place, it.path + '.png')}&v=${it.mtime}")`; // the sheet beside the .ui.json
       else if (it.kind === 'palette') art.innerHTML = Object.values(it.palette.roles).map((c) => `<span style="background:${esc(c)}"></span>`).join('');
       else art.textContent = KIND_ICON[it.kind] ?? '◆';
       const name = document.createElement('div');
@@ -228,6 +229,8 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
     if (it.kind === 'generator') return onOpenGenerator({ ...it, place: st.place });
     // scenes are Dream World worlds: a host that opens them gets them, anywhere else they open in Dream World
     if (it.kind === 'scene') return onOpenScene ? onOpenScene({ url, item: it, place: st.place }) : window.open(`${location.protocol}//${location.hostname}:5240/?scene=${encodeURIComponent(it.place ?? st.place)}|${encodeURIComponent(it.path)}`, '_blank');
+    // game UI pieces open in Dream Paint with their guides, unless the host opens them itself
+    if (it.kind === 'ui') return onOpenUi ? onOpenUi({ url, item: it, place: st.place }) : window.open(`${location.protocol}//${location.hostname}:5250/?ui=${encodeURIComponent(it.place ?? st.place)}|${encodeURIComponent(it.path)}`, '_blank');
     // effects open in Dream Effects, unless the host opens them itself
     if (it.kind === 'effect') return onOpenEffect ? onOpenEffect({ url, item: it, place: st.place }) : window.open(`${location.protocol}//${location.hostname}:5260/?fx=${encodeURIComponent(it.place ?? st.place)}|${encodeURIComponent(it.path)}`, '_blank');
     if (it.kind === 'model' || it.kind === 'character') {
