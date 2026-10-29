@@ -1,5 +1,7 @@
 # Publishing a Dream repo
 
+The machines, addresses, ports and restart steps are in `network.md`; read it first.
+
 Every Dream repo lives in three places: the working copy under `K:\`, GitHub (`GravePain` org, private), and the house server Morty (`\morty\Public`, mapped as `Z:`; `D:\Public` on the box, SSH alias `morty`, cmd.exe).
 
 1. Commit in the working copy.

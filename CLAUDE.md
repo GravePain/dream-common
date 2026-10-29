@@ -1,6 +1,6 @@
 # The Dream ecosystem
 
-**Mandatory before commenting on or changing anything in this series: read `working-with-claude.md` next to this file.** It is the induction training for a new agent, taken from the GravesPluginBuilder project (`Docs/research/working-with-claude.md` there): how Graves works with agents, what the operator does, what goes wrong and what the agent does about it. Nothing below replaces it.
+**Mandatory before commenting on or changing anything in this series: read `working-with-claude.md` next to this file, and `docs/network.md` (which machine is which, the addresses and ports, who may write to the Library, and how a change gets onto Morty, where the user works).** It is the induction training for a new agent, taken from the GravesPluginBuilder project (`Docs/research/working-with-claude.md` there): how Graves works with agents, what the operator does, what goes wrong and what the agent does about it. Nothing below replaces it.
 
 This file is the map; each repo's README has the detail.
 
@@ -42,7 +42,7 @@ Every repo is in three places and all three must match after each piece of work:
 2. GitHub, `GravePain` org, private: `git push origin main`.
 3. Morty, the house server (Windows, 192.168.1.111, SSH alias `morty`, cmd.exe; share `\\morty\Public` is the `Z:` drive, `D:\Public` on the box). Each repo there is a plain clone tracking GitHub: `git -C /z/<repo> -c safe.directory='*' pull --ff-only`. The `safe.directory` is needed because the share is owned by another Windows user. Dream Forge is `dream-forge` there.
 
-An agent cannot create a GitHub repo (the permission classifier refuses it); ask Graves to create it empty, then add the remote and push. Running servers only pick up server changes after a restart (`gravepain-portal\start-all.bat`). Full notes: `docs/publishing.md`.
+An agent cannot create a GitHub repo (the permission classifier refuses it); ask Graves to create it empty, then add the remote and push. Running servers only pick up server changes after a restart (`gravepain-portal\start-all.bat`). Full notes: `docs/publishing.md`; the machines, addresses and restart steps: `docs/network.md`.
 
 ## Documents that belong here
 
