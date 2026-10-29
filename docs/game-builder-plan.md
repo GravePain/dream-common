@@ -89,6 +89,7 @@ is completed before Dream Server, and each tool's runtime half moves to `dream-c
   and the tool imports it, so Play mode and the game spawn exactly what the tool saved.
 - **Dream Effects:** `fx.js` already is the shared runtime; ability and hit presets are added when
   Codex needs them.
+  Done 2026-10-29: play-once effects (`fx.play({ at, follow })` with `done`), per-layer start and duration, ring and trail layers, Library textures and flipbooks, six presets in `Effects/Abilities/`.
 - **Dream Forge:** collider proxies (box, capsule, cylinder) per piece in the template; mesh colliders
   from `.mesh.json` only later.
 - **Dream Library:** a `licence` field per place; publish refuses assets from places not cleared for the

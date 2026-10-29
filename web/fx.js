@@ -4,14 +4,32 @@
 //   particles: sprites born in an area, moving, growing, fading (spray, mist, embers, rain, leaves)
 //   sheet:     a curved falling sheet of water with scrolling streaks (waterfalls, weirs, spouts)
 //   light:     a point light, steady or flickering (fire)
+//   ring:      flat discs or rings that grow and fade (shockwaves, auras, ground circles, scorch marks)
+//   trail:     a ribbon behind the effect's moving head (sword arcs, projectile trails)
+// Particles, rings and trails draw a built-in sprite, or a Library texture (`texture: "place|path"`)
+// whose luminance is the alpha (black = clear), tinted by the layer's colours. A texture that is a grid
+// of frames (`frames: "4x4"`) plays through them over each particle's life, or at `fps`.
+// An effect loops (the default), or with `mode: 'once'` plays when asked: each layer then runs from
+// `start` for `duration` seconds (0 = until the effect ends), so one effect can cast, travel and hit.
+// `travel: { start, end, to: [x, y, z], arc }` moves the effect's head (where layers are born) in that
+// window; `play({ follow })` makes the head track an Object3D instead (a hand bone, a projectile).
 // Units are metres and seconds; an effect stands on its own origin. three.js is passed in, so this file
 // works the same in Dream Effects (plain modules) and Dream World (Vite):
-//   const fx = createEffect(THREE, def);  scene.add(fx.root);  each frame: fx.update(dt, camera);
+//   const fx = createEffect(THREE, def);  scene.add(fx.root);  each frame: fx.update(dt);
+//   once:  const h = fx.play({ at, follow });  h.done.then(...);  h.stop();
+
+const SPRITES = ['soft', 'spark', 'smoke', 'drop', 'leaf', 'star', 'ring'];
+// a Library texture as the shape, and its frames when it is a sheet; 'texture' and 'grid' are editor types
+const SHAPE = [['texture', 'Shape', 'texture'], ['frames', 'Sheet columns x rows', 'grid'], ['fps', 'Frames per second (0 = over its life)', 0, 60, 1]];
+// when a layer runs in a play-once effect
+const TIMING = [['start', 'Starts at (s)', 0, 10, 0.05], ['duration', 'Lasts (s, 0 = to the end)', 0, 10, 0.05]];
+const OFFSET = [['x', 'Offset X', -20, 20, 0.05], ['y', 'Offset Y', -5, 30, 0.05], ['z', 'Offset Z', -20, 20, 0.05]];
 
 /** The settings each layer kind has, for editors to build their panels from: [key, label, min, max, step]. */
 export const SCHEMA = {
   particles: [
-    ['sprite', 'Sprite', ['soft', 'spark', 'smoke', 'drop', 'leaf', 'star']],
+    ['sprite', 'Sprite', SPRITES],
+    ...SHAPE,
     ['blend', 'Blend', ['add', 'alpha']],
     ['shape', 'Born in', ['point', 'disc', 'box', 'line']],
     ['area', 'Area size', 0, 20, 0.05],
@@ -44,7 +62,7 @@ export const SCHEMA = {
     ['spin', 'Spin', 0, 10, 0.1],
     ['flicker', 'Flicker', 0, 1, 0.01],
     ['floor', 'Stop at the ground', 'bool'],
-    ['x', 'Offset X', -20, 20, 0.05], ['y', 'Offset Y', -5, 30, 0.05], ['z', 'Offset Z', -20, 20, 0.05],
+    ...OFFSET, ...TIMING,
   ],
   sheet: [
     ['width', 'Width', 0.1, 20, 0.05],
@@ -57,16 +75,49 @@ export const SCHEMA = {
     ['color', 'Water', 'color'],
     ['foam', 'Foam', 'color'],
     ['alpha', 'Opacity', 0, 1, 0.01],
-    ['x', 'Offset X', -20, 20, 0.05], ['y', 'Offset Y', -5, 30, 0.05], ['z', 'Offset Z', -20, 20, 0.05],
+    ...OFFSET, ...TIMING,
   ],
   light: [
     ['color', 'Colour', 'color'],
     ['intensity', 'Brightness', 0, 20, 0.1],
     ['distance', 'Reach', 0.5, 40, 0.5],
     ['flicker', 'Flicker', 0, 1, 0.01],
-    ['x', 'Offset X', -20, 20, 0.05], ['y', 'Offset Y', -5, 30, 0.05], ['z', 'Offset Z', -20, 20, 0.05],
+    ...OFFSET, ...TIMING,
+  ],
+  ring: [
+    ['sprite', 'Sprite', SPRITES],
+    ...SHAPE,
+    ['blend', 'Blend', ['add', 'alpha']],
+    ['face', 'Faces', ['ground', 'camera']],
+    ['every', 'One every (s)', 0.05, 10, 0.05],
+    ['burst', 'Rings at once', 1, 20, 1],
+    ['life', 'Lifetime', 0.05, 20, 0.05],
+    ['sizeStart', 'Size at start', 0.01, 20, 0.01],
+    ['sizeEnd', 'Size at end', 0.01, 20, 0.01],
+    ['colorStart', 'Colour at start', 'color'],
+    ['colorEnd', 'Colour at end', 'color'],
+    ['alpha', 'Opacity', 0, 1, 0.01],
+    ['fadeIn', 'Fade in', 0, 1, 0.01],
+    ['fadeOut', 'Fade out', 0, 1, 0.01],
+    ['spin', 'Spin', -10, 10, 0.1],
+    ...OFFSET, ...TIMING,
+  ],
+  trail: [
+    ...SHAPE.slice(0, 1),
+    ['blend', 'Blend', ['add', 'alpha']],
+    ['width', 'Width', 0.01, 5, 0.01],
+    ['widthEnd', 'Width at the tail', 0, 5, 0.01],
+    ['life', 'Length (s)', 0.05, 5, 0.05],
+    ['arc', 'Sweeps (degrees)', 0, 360, 1],
+    ['radius', 'Sweep radius', 0, 10, 0.05],
+    ['colorStart', 'Colour at the head', 'color'],
+    ['colorEnd', 'Colour at the tail', 'color'],
+    ['alpha', 'Opacity', 0, 1, 0.01],
+    ...OFFSET, ...TIMING,
   ],
 };
+/** The effect's own settings (not per layer). */
+export const EFFECT_SCHEMA = [['mode', 'Plays', ['loop', 'once']], ['length', 'Length (s, 0 = from its layers)', 0, 20, 0.05]];
 
 /** Starting values for a new layer of each kind. */
 export const LAYER_DEFAULTS = {
@@ -77,7 +128,10 @@ export const LAYER_DEFAULTS = {
   },
   sheet: { width: 2, height: 6, lip: 0.6, spreadOut: 0.25, speed: 4, streaks: 10, broken: 0.35, color: '#bfe6ee', foam: '#ffffff', alpha: 0.85, x: 0, y: 0, z: 0 },
   light: { color: '#ff9a4a', intensity: 3, distance: 6, flicker: 0.5, x: 0, y: 0.5, z: 0 },
+  ring: { sprite: 'ring', blend: 'add', face: 'ground', every: 1, burst: 1, life: 0.8, sizeStart: 0.2, sizeEnd: 3, colorStart: '#ffffff', colorEnd: '#ffffff', alpha: 0.9, fadeIn: 0.05, fadeOut: 0.6, spin: 0, x: 0, y: 0.05, z: 0 },
+  trail: { blend: 'add', width: 0.3, widthEnd: 0, life: 0.3, arc: 0, radius: 1, colorStart: '#ffffff', colorEnd: '#9fd8ff', alpha: 0.9, x: 0, y: 0, z: 0 },
 };
+for (const k in LAYER_DEFAULTS) Object.assign(LAYER_DEFAULTS[k], { texture: '', frames: '1x1', fps: 0, start: 0, duration: 0 });
 export const layer = (kind, values = {}) => ({ kind, name: kind[0].toUpperCase() + kind.slice(1), ...structuredClone(LAYER_DEFAULTS[kind]), ...values });
 
 /** Ready-made effects to start from. */
@@ -123,6 +177,46 @@ export const PRESETS = [
   ] },
 ];
 
+// ability effects, played once; shapes from Kenney's CC0 particle pack (the Library place cc0-kenney-particles)
+const K = (n) => `cc0-kenney-particles|${n}.png`;
+const once = (name, length, layers, more = {}) => ({ format: 'dream-fx', version: 1, name, group: 'Abilities', mode: 'once', length, ...more, layers });
+const HAND = 1.2; // cast from about hand height
+PRESETS.push(
+  once('Fireball', 1.9, [
+    layer('ring', { name: 'Cast ring', texture: K('circle_03'), face: 'camera', every: 0.2, life: 0.4, sizeStart: 0.1, sizeEnd: 1.2, colorStart: '#ffd27a', colorEnd: '#ff5a1a', y: HAND, duration: 0.4 }),
+    layer('particles', { name: 'Cast sparks', sprite: 'spark', blend: 'add', shape: 'point', every: 0.15, burst: 16, life: 0.4, speed: 2, spread: 1, drag: 2, sizeStart: 0.08, sizeEnd: 0.02, colorStart: '#fff1c0', colorEnd: '#ff7a2a', alpha: 1, fadeIn: 0, y: HAND, duration: 0.4 }),
+    layer('particles', { name: 'Core', texture: K('flame_01'), blend: 'add', shape: 'point', rate: 70, life: 0.25, speed: 0.4, spread: 1, sizeStart: 0.7, sizeEnd: 0.2, spin: 3, colorStart: '#ffe6a0', colorEnd: '#e0401a', alpha: 1, fadeIn: 0, y: HAND, start: 0.3, duration: 0.72 }),
+    layer('trail', { name: 'Trail', width: 0.4, widthEnd: 0, life: 0.3, colorStart: '#ffd27a', colorEnd: '#c8301a', y: HAND, start: 0.4, duration: 0.62 }),
+    layer('particles', { name: 'Burst', texture: K('spark_01'), blend: 'add', shape: 'point', every: 5, burst: 70, life: 0.6, lifeVary: 0.4, speed: 5, spread: 1, gravity: 4, drag: 1.5, stretch: 0.3, sizeStart: 0.25, sizeEnd: 0.05, colorStart: '#fff1c0', colorEnd: '#ff4a1a', alpha: 1, fadeIn: 0, y: HAND, start: 1, duration: 0.05 }),
+    layer('particles', { name: 'Flash', sprite: 'soft', blend: 'add', shape: 'point', every: 5, burst: 1, life: 0.3, speed: 0, sizeStart: 3, sizeEnd: 0.5, colorStart: '#ffffff', colorEnd: '#ffb04a', alpha: 1, fadeIn: 0, fadeOut: 0.9, y: HAND, start: 1, duration: 0.05 }),
+    layer('ring', { name: 'Shockwave', texture: K('circle_02'), every: 5, life: 0.5, sizeStart: 0.3, sizeEnd: 4, colorStart: '#ffd27a', colorEnd: '#ff5a1a', start: 1, duration: 0.05 }),
+    layer('ring', { name: 'Scorch', texture: K('scorch_01'), blend: 'alpha', every: 5, life: 0.85, sizeStart: 1.6, sizeEnd: 1.8, colorStart: '#20140c', colorEnd: '#3a2a20', alpha: 0.85, fadeIn: 0.02, fadeOut: 0.6, y: 0.02, start: 1, duration: 0.05 }),
+    layer('light', { name: 'Glow', color: '#ff8a3a', intensity: 4, distance: 6, flicker: 0.3, y: HAND, duration: 1.2 }),
+  ], { travel: { start: 0.4, end: 1, to: [6, 0, 0], arc: 0.5 } }),
+  once('Heal', 1.6, [
+    layer('ring', { name: 'Ground ring', texture: K('circle_05'), every: 5, life: 1.3, sizeStart: 0.6, sizeEnd: 2.6, spin: 0.8, colorStart: '#c8ffb0', colorEnd: '#5ad46a', fadeIn: 0.1, duration: 0.05 }),
+    layer('particles', { name: 'Rising stars', texture: K('star_06'), blend: 'add', shape: 'disc', area: 1.4, rate: 45, life: 1, lifeVary: 0.3, speed: 1.3, spread: 0.1, sizeStart: 0.28, sizeEnd: 0.08, colorStart: '#f6ffc8', colorEnd: '#6ae07a', alpha: 1, flicker: 0.4, duration: 1 }),
+    layer('light', { name: 'Glow', color: '#8aff9a', intensity: 3, distance: 5, flicker: 0.1, y: 1, duration: 1.2 }),
+  ]),
+  once('Slash', 0.6, [
+    layer('trail', { name: 'Arc', width: 0.55, widthEnd: 0, life: 0.16, arc: 170, radius: 1.1, colorStart: '#ffffff', colorEnd: '#8fd0ff', y: 1.1, duration: 0.22 }),
+    layer('particles', { name: 'Glints', sprite: 'star', blend: 'add', shape: 'line', area: 1.6, rate: 60, life: 0.25, speed: 0.6, spread: 1, sizeStart: 0.15, sizeEnd: 0.02, colorStart: '#ffffff', colorEnd: '#8fd0ff', alpha: 1, fadeIn: 0, y: 1.1, z: 0.8, duration: 0.2 }),
+  ]),
+  once('Hit sparks', 0.6, [
+    layer('particles', { name: 'Sparks', sprite: 'spark', blend: 'add', shape: 'point', every: 5, burst: 40, life: 0.4, lifeVary: 0.5, speed: 6, speedVary: 0.5, spread: 1, gravity: 6, drag: 2, stretch: 0.5, sizeStart: 0.1, sizeEnd: 0.03, colorStart: '#fff6d0', colorEnd: '#ffa02a', alpha: 1, fadeIn: 0, y: 1, duration: 0.05 }),
+    layer('ring', { name: 'Flash', texture: K('star_07'), face: 'camera', every: 5, life: 0.18, sizeStart: 1.4, sizeEnd: 0.4, spin: 4, colorStart: '#ffffff', colorEnd: '#ffd27a', fadeIn: 0, y: 1, duration: 0.05 }),
+  ]),
+  once('Smoke puff', 1.6, [
+    layer('particles', { name: 'Puff', texture: K('smoke_04'), shape: 'disc', area: 0.3, every: 5, burst: 18, life: 1.3, lifeVary: 0.3, speed: 1.6, spread: 1, drag: 2.5, gravity: -0.3, spin: 0.6, sizeStart: 0.6, sizeEnd: 1.8, colorStart: '#d8d2ca', colorEnd: '#8a847c', alpha: 0.7, fadeIn: 0.05, fadeOut: 0.6, y: 0.4, duration: 0.05 }),
+  ]),
+  once('Magic circle', 3.2, [
+    layer('ring', { name: 'Circle', texture: K('magic_03'), every: 5, life: 3, sizeStart: 2.6, sizeEnd: 3, spin: 0.7, colorStart: '#c8a0ff', colorEnd: '#7a5aff', fadeIn: 0.15, fadeOut: 0.25, duration: 0.05 }),
+    layer('ring', { name: 'Inner', texture: K('symbol_02'), every: 5, life: 3, sizeStart: 1.2, sizeEnd: 1.4, spin: -1.2, colorStart: '#e6d8ff', colorEnd: '#a07aff', alpha: 0.8, fadeIn: 0.2, fadeOut: 0.25, y: 0.06, duration: 0.05 }),
+    layer('particles', { name: 'Motes', texture: K('magic_01'), blend: 'add', shape: 'disc', area: 2.6, rate: 25, life: 1.4, speed: 0.8, spread: 0.1, sizeStart: 0.2, sizeEnd: 0.05, colorStart: '#e6d8ff', colorEnd: '#8a6aff', alpha: 1, flicker: 0.5, duration: 2.6 }),
+    layer('light', { name: 'Glow', color: '#9a7aff', intensity: 2.5, distance: 5, flicker: 0.1, y: 0.5, duration: 3 }),
+  ]),
+);
+
 // ---------- sprites: drawn once on canvases, shared by every effect ----------
 const spriteCache = new Map();
 function spriteTexture(THREE, kind) {
@@ -158,19 +252,41 @@ function spriteTexture(THREE, kind) {
     radial([[0, 1], [0.1, 0.9], [0.3, 0.15], [1, 0]]);
     g.fillStyle = 'rgba(255,255,255,0.9)';
     g.fillRect(mid - 1, 4, 2, S - 8); g.fillRect(4, mid - 1, S - 8, 2);
-  } else radial([[0, 1], [0.4, 0.6], [1, 0]]);
+  } else if (kind === 'ring') radial([[0, 0], [0.7, 0], [0.85, 1], [1, 0]]);
+  else radial([[0, 1], [0.4, 0.6], [1, 0]]);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   spriteCache.set(kind, t);
   return t;
 }
 
+const loading = new Set();
+/** A Library texture ("place|path"), loaded once and shared by every effect that uses it. */
+export function loadTexture(THREE, ref) {
+  if (spriteCache.has(ref)) return spriteCache.get(ref);
+  const [place, path] = ref.split('|');
+  let t;
+  const wait = new Promise((done) => { t = new THREE.TextureLoader().load(`${location.origin}/dl/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(path)}`, done, undefined, done); });
+  loading.add(wait);
+  wait.then(() => loading.delete(wait));
+  t.colorSpace = THREE.NoColorSpace; // read as stored: its brightness is the alpha the artist drew
+  spriteCache.set(ref, t);
+  return t;
+}
+/** Resolves once every Library texture asked for so far has loaded (or failed): before a thumbnail. */
+export const texturesReady = () => Promise.all([...loading]);
+const grid = (s) => { const [c, r] = String(s || '1x1').toLowerCase().split('x').map((n) => Math.max(1, Math.round(+n) || 1)); return [c, r ?? c]; };
+// the shape a layer draws: its texture (luminance is the alpha) or its built-in sprite
+const shapeOf = (THREE, L) => (L.texture ? { map: loadTexture(THREE, L.texture), lum: 1 } : { map: spriteTexture(THREE, L.sprite ?? 'soft'), lum: 0 });
+
 // ---------- particles ----------
 const PARTICLE_VERT = `
 attribute vec4 aColor;
 attribute vec4 aMotion; // velocity xyz, spin angle
 attribute float aSize;
-uniform float uStretch;
+attribute float aFrame;
+uniform float uStretch, uFlat;
+uniform vec2 uGrid;
 varying vec2 vUv;
 varying vec4 vColor;
 void main() {
@@ -182,7 +298,12 @@ void main() {
   float speed = length(along);
   vec3 up, right;
   float len = 1.0;
-  if (uStretch > 0.0 && speed > 0.001) {
+  if (uFlat > 0.5) {
+    // lying flat in the effect's ground plane (rings, scorch marks), turned by the spin
+    float c = cos(aMotion.w), s = sin(aMotion.w);
+    right = normalize(mat3(modelMatrix) * vec3(c, 0.0, s));
+    up = normalize(mat3(modelMatrix) * vec3(-s, 0.0, c));
+  } else if (uStretch > 0.0 && speed > 0.001) {
     up = along / speed;
     right = normalize(cross(up, toCam));
     len = 1.0 + speed * uStretch * 4.0;
@@ -194,16 +315,20 @@ void main() {
     up = -camRight * s + camUp * c;
   }
   vec3 world = centre + (right * position.x + up * position.y * len) * aSize;
-  vUv = uv;
+  // a sheet's frame: column from the left, row from the top
+  vUv = (uv + vec2(mod(aFrame, uGrid.x), uGrid.y - 1.0 - floor(aFrame / uGrid.x))) / uGrid;
   vColor = aColor;
   gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
 }`;
 const PARTICLE_FRAG = `
 uniform sampler2D uMap;
+uniform float uLum;
 varying vec2 vUv;
 varying vec4 vColor;
 void main() {
   vec4 t = texture2D(uMap, vUv);
+  // a Library texture: white shapes on black, so its brightness is how solid it is
+  if (uLum > 0.5) t = vec4(1.0, 1.0, 1.0, dot(t.rgb, vec3(0.299, 0.587, 0.114)) * t.a);
   gl_FragColor = vec4(vColor.rgb * t.rgb, vColor.a * t.a);
   if (gl_FragColor.a < 0.003) discard;
   #include <colorspace_fragment>
@@ -217,19 +342,23 @@ function particleLayer(THREE, L, ctx) {
   const aColor = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4);
   const aMotion = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4);
   const aSize = new THREE.InstancedBufferAttribute(new Float32Array(max), 1);
-  for (const a of [aColor, aMotion, aSize]) a.setUsage(THREE.DynamicDrawUsage);
+  const aFrame = new THREE.InstancedBufferAttribute(new Float32Array(max), 1);
+  for (const a of [aColor, aMotion, aSize, aFrame]) a.setUsage(THREE.DynamicDrawUsage);
   geo.setAttribute('aColor', aColor);
   geo.setAttribute('aMotion', aMotion);
   geo.setAttribute('aSize', aSize);
+  geo.setAttribute('aFrame', aFrame);
+  const shape = shapeOf(THREE, L), [cols, rows] = grid(L.frames), frames = cols * rows;
+  const flat = L.kind === 'ring' && L.face !== 'camera';
   const mat = new THREE.ShaderMaterial({
-    vertexShader: PARTICLE_VERT, fragmentShader: PARTICLE_FRAG, transparent: true, depthWrite: false,
+    vertexShader: PARTICLE_VERT, fragmentShader: PARTICLE_FRAG, transparent: true, depthWrite: false, side: flat ? THREE.DoubleSide : THREE.FrontSide,
     blending: L.blend === 'add' ? THREE.AdditiveBlending : THREE.NormalBlending,
-    uniforms: { uMap: { value: spriteTexture(THREE, L.sprite) }, uStretch: { value: L.stretch } },
+    uniforms: { uMap: { value: shape.map }, uLum: { value: shape.lum }, uStretch: { value: L.stretch }, uFlat: { value: flat ? 1 : 0 }, uGrid: { value: new THREE.Vector2(cols, rows) } },
   });
   const mesh = new THREE.InstancedMesh(geo, mat, max);
   mesh.frustumCulled = false;
   mesh.count = 0;
-  mesh.renderOrder = L.blend === 'add' ? 4 : 3;
+  mesh.renderOrder = flat ? 2.5 : L.blend === 'add' ? 4 : 3;
   const c0 = new THREE.Color(L.colorStart), c1 = new THREE.Color(L.colorEnd), col = new THREE.Color();
   const parts = [], m = new THREE.Matrix4(), dir = new THREE.Vector3(L.dirX, L.dirY, L.dirZ);
   if (dir.lengthSq() < 1e-6) dir.set(0, 1, 0);
@@ -242,7 +371,9 @@ function particleLayer(THREE, L, ctx) {
     else if (L.shape === 'box') p.pos.set((Math.random() - 0.5) * L.area, Math.random() * L.areaH, (Math.random() - 0.5) * L.area);
     else if (L.shape === 'line') p.pos.set((Math.random() - 0.5) * L.area, 0, 0);
     p.pos.y += L.areaH && L.shape !== 'box' ? Math.random() * L.areaH : 0;
-    p.pos.add(new THREE.Vector3(L.x, L.y, L.z));
+    p.pos.add(new THREE.Vector3(L.x, L.y, L.z)).add(ctx.head);
+    // a ground ring lies on the ground under the head, wherever the head has flown
+    if (flat) p.pos.y = ctx.groundAt(p.pos) + L.y;
     if (at) p.pos.copy(at);
     // a direction within the cone round `dir`
     const v = new THREE.Vector3().randomDirection().multiplyScalar(L.spread * 1.5).add(dir).normalize();
@@ -251,8 +382,8 @@ function particleLayer(THREE, L, ctx) {
   };
   return {
     object: mesh,
-    update(dt, t) {
-      if (L.every > 0) {
+    update(dt, t, emit = true) {
+      if (!emit) { /* outside its window in a play-once effect: what is alive lives on */ } else if (L.every > 0) {
         clock -= dt;
         if (clock <= 0) {
           clock = L.every * (0.7 + Math.random() * 0.6);
@@ -289,13 +420,16 @@ function particleLayer(THREE, L, ctx) {
         aColor.setXYZW(n, col.r, col.g, col.b, L.alpha * fade * flick);
         aMotion.setXYZW(n, p.vel.x, p.vel.y, p.vel.z, p.spin);
         aSize.setX(n, L.sizeStart + (L.sizeEnd - L.sizeStart) * k);
+        aFrame.setX(n, frames < 2 ? 0 : L.fps > 0 ? Math.floor(p.age * L.fps) % frames : Math.min(frames - 1, Math.floor(k * frames)));
         m.makeTranslation(p.pos.x, p.pos.y, p.pos.z);
         mesh.setMatrixAt(n, m);
         n++;
       }
       mesh.count = n;
-      mesh.instanceMatrix.needsUpdate = aColor.needsUpdate = aMotion.needsUpdate = aSize.needsUpdate = true;
+      mesh.instanceMatrix.needsUpdate = aColor.needsUpdate = aMotion.needsUpdate = aSize.needsUpdate = aFrame.needsUpdate = true;
     },
+    reset() { parts.length = 0; carry = 0; clock = 0; mesh.count = 0; },
+    idle: () => parts.length === 0,
     dispose() { geo.dispose(); mat.dispose(); },
   };
 }
@@ -346,19 +480,112 @@ function sheetLayer(THREE, L) {
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 2;
-  return { object: mesh, update(dt, t) { mat.uniforms.uTime.value = t; }, dispose() { geo.dispose(); mat.dispose(); } };
+  return { object: mesh, update(dt, t, emit = true) { mesh.visible = emit; mat.uniforms.uTime.value = t; }, dispose() { geo.dispose(); mat.dispose(); } };
 }
 
 // ---------- light ----------
-function lightLayer(THREE, L) {
+function lightLayer(THREE, L, ctx) {
   const light = new THREE.PointLight(new THREE.Color(L.color), L.intensity, L.distance, 2);
   light.position.set(L.x, L.y, L.z);
   return {
     object: light,
-    update(dt, t) { light.intensity = L.intensity * (1 - L.flicker * 0.5 * (0.5 + 0.5 * Math.sin(t * 17) * Math.sin(t * 7.3 + 1))); },
+    // in a play-once effect it shows in its window only, dimming towards the end of it
+    update(dt, t, emit = true, k = 0) {
+      light.visible = emit;
+      light.position.set(L.x, L.y, L.z).add(ctx.head);
+      light.intensity = L.intensity * (1 - k * k) * (1 - L.flicker * 0.5 * (0.5 + 0.5 * Math.sin(t * 17) * Math.sin(t * 7.3 + 1)));
+    },
     dispose() {},
   };
 }
+
+// ---------- trail: a camera-facing ribbon through the head's recent positions ----------
+const TRAIL_VERT = `
+attribute vec3 aDir;
+attribute vec2 aInfo; // side (-1 or 1), how far down the trail (0 at the head, 1 at the tail)
+uniform float uWidth, uWidthEnd;
+varying vec2 vUv;
+void main() {
+  vec3 p = (modelMatrix * vec4(position, 1.0)).xyz;
+  vec3 side = cross(mat3(modelMatrix) * aDir, cameraPosition - p);
+  side = length(side) > 1e-6 ? normalize(side) : vec3(0.0, 1.0, 0.0);
+  p += side * aInfo.x * mix(uWidth, uWidthEnd, aInfo.y) * 0.5;
+  vUv = vec2(aInfo.y, aInfo.x * 0.5 + 0.5);
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+}`;
+const TRAIL_FRAG = `
+uniform sampler2D uMap;
+uniform float uHasMap, uAlpha;
+uniform vec3 uC0, uC1;
+varying vec2 vUv;
+void main() {
+  // across the ribbon: the texture's brightness, or soft edges
+  float across = uHasMap > 0.5 ? dot(texture2D(uMap, vUv).rgb, vec3(0.299, 0.587, 0.114)) : 1.0 - abs(vUv.y * 2.0 - 1.0);
+  float a = uAlpha * across * (1.0 - vUv.x);
+  gl_FragColor = vec4(mix(uC0, uC1, vUv.x), a);
+  if (a < 0.003) discard;
+  #include <colorspace_fragment>
+}`;
+function trailLayer(THREE, L, ctx) {
+  const M = 96, geo = new THREE.BufferGeometry();
+  const pos = new THREE.BufferAttribute(new Float32Array(M * 6), 3), dirs = new THREE.BufferAttribute(new Float32Array(M * 6), 3), info = new THREE.BufferAttribute(new Float32Array(M * 4), 2);
+  for (const a of [pos, dirs, info]) a.setUsage(THREE.DynamicDrawUsage);
+  const index = [];
+  for (let i = 0; i < M - 1; i++) { const a = i * 2; index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  geo.setIndex(index);
+  geo.setAttribute('position', pos);
+  geo.setAttribute('aDir', dirs);
+  geo.setAttribute('aInfo', info);
+  geo.setDrawRange(0, 0);
+  const mat = new THREE.ShaderMaterial({
+    vertexShader: TRAIL_VERT, fragmentShader: TRAIL_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    blending: L.blend === 'add' ? THREE.AdditiveBlending : THREE.NormalBlending,
+    uniforms: {
+      uMap: { value: L.texture ? loadTexture(THREE, L.texture) : null }, uHasMap: { value: L.texture ? 1 : 0 }, uAlpha: { value: L.alpha },
+      uWidth: { value: L.width }, uWidthEnd: { value: L.widthEnd }, uC0: { value: new THREE.Color(L.colorStart) }, uC1: { value: new THREE.Color(L.colorEnd) },
+    },
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 4;
+  const points = [], d = new THREE.Vector3();
+  return {
+    object: mesh,
+    update(dt, t, emit = true, k = 0) {
+      for (const q of points) q.age += dt;
+      while (points.length && points[points.length - 1].age > L.life) points.pop();
+      if (emit) {
+        const at = new THREE.Vector3(L.x, L.y, L.z).add(ctx.head);
+        if (L.arc) {
+          // a swing round the effect's up axis, eased in and out (a loop swings once a second)
+          const u = k || t % 1, e = u * u * (3 - 2 * u), a = ((-L.arc / 2 + L.arc * e) * Math.PI) / 180;
+          at.x += Math.sin(a) * L.radius; at.z += Math.cos(a) * L.radius;
+        }
+        if (!points.length || points[0].pos.distanceToSquared(at) > 1e-6) points.unshift({ pos: at, age: 0 });
+        if (points.length > M) points.length = M;
+      }
+      const n = points.length;
+      for (let i = 0; i < n; i++) {
+        const q = points[i];
+        d.copy(points[Math.max(0, i - 1)].pos).sub(points[Math.min(n - 1, i + 1)].pos);
+        for (let s = 0; s < 2; s++) {
+          pos.setXYZ(i * 2 + s, q.pos.x, q.pos.y, q.pos.z);
+          dirs.setXYZ(i * 2 + s, d.x, d.y, d.z);
+          info.setXY(i * 2 + s, s ? 1 : -1, Math.min(1, q.age / L.life));
+        }
+      }
+      geo.setDrawRange(0, n > 1 ? (n - 1) * 6 : 0);
+      pos.needsUpdate = dirs.needsUpdate = info.needsUpdate = true;
+    },
+    reset() { points.length = 0; geo.setDrawRange(0, 0); },
+    idle: () => points.length === 0,
+    dispose() { geo.dispose(); mat.dispose(); },
+  };
+}
+
+// a ring is a particle layer that is born still, at the head, flat on the ground or facing the camera
+const RING_FIXED = { shape: 'point', area: 0, areaH: 0, rate: 0, speed: 0, speedVary: 0, gravity: 0, drag: 0, wander: 0, windX: 0, windZ: 0, stretch: 0, hueVary: 0, lifeVary: 0, flicker: 0, floor: false };
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /**
  * A live effect from its data. `opts.groundAt(localPos)` gives the ground height under a point in the
@@ -367,24 +594,68 @@ function lightLayer(THREE, L) {
 export function createEffect(THREE, def, opts = {}) {
   const root = new THREE.Group();
   root.name = def.name ?? 'effect';
-  const ctx = { groundAt: opts.groundAt ?? (() => 0) };
-  const layers = [];
+  // the head is where layers are born, in the effect's own space: its origin, or flown by `travel` / `follow`
+  const ctx = { groundAt: opts.groundAt ?? (() => 0), head: new THREE.Vector3() };
+  const once = def.mode === 'once', layers = [];
   for (const raw of def.layers ?? []) {
-    const L = { ...LAYER_DEFAULTS[raw.kind], ...raw };
+    const L = raw.kind === 'ring' ? { ...LAYER_DEFAULTS.particles, ...LAYER_DEFAULTS.ring, ...raw, ...RING_FIXED } : { ...LAYER_DEFAULTS[raw.kind], ...raw };
     if (L.off) continue;
-    const made = raw.kind === 'sheet' ? sheetLayer(THREE, L) : raw.kind === 'light' ? lightLayer(THREE, L) : raw.kind === 'particles' ? particleLayer(THREE, L, ctx) : null;
-    if (!made) continue;
+    const make = { sheet: sheetLayer, light: lightLayer, particles: particleLayer, ring: particleLayer, trail: trailLayer }[raw.kind];
+    if (!make) continue;
+    const made = make(THREE, L, ctx);
     root.add(made.object);
-    layers.push(made);
+    layers.push({ made, L });
   }
-  let time = 0;
-  // warm up, so a placed waterfall is already falling and mist already hangs
-  const warm = opts.warm ?? 3;
-  for (let s = 0; s < warm * 20; s++) { time += 0.05; for (const l of layers) l.update(0.05, time); }
-  return {
+  // a play-once effect lasts its `length`, or until its last layer's window closes
+  const length = def.length > 0 ? def.length : Math.max(0.1, ...layers.map(({ L }) => L.start + L.duration));
+  const tr = def.travel, v = new THREE.Vector3();
+  let time = 0, playing = !once, stopped = false, follow = null, finish = null;
+  const step = (dt) => {
+    time += dt;
+    if (follow) { follow.getWorldPosition(v); root.updateWorldMatrix(true, false); ctx.head.copy(root.worldToLocal(v)); }
+    else if (once && tr) {
+      const k = clamp01((time - tr.start) / Math.max(1e-3, tr.end - tr.start)), to = tr.to ?? [0, 0, 0];
+      ctx.head.set(to[0] * k, (to[1] ?? 0) * k + (tr.arc ?? 0) * 4 * k * (1 - k), (to[2] ?? 0) * k);
+    }
+    for (const { made, L } of layers) {
+      let emit = playing && !stopped, k = 0;
+      if (once) {
+        const end = L.duration > 0 ? L.start + L.duration : length;
+        emit = emit && time >= L.start && time < end;
+        k = clamp01((time - L.start) / Math.max(1e-3, end - L.start));
+      }
+      made.update(dt, time, emit, k);
+    }
+    if (finish && (stopped || (once && time >= length)) && layers.every(({ made }) => !made.idle || made.idle())) { playing = !once; finish(); finish = null; }
+  };
+  // warm up, so a placed waterfall is already falling and mist already hangs; a play-once effect waits for play()
+  const warm = once ? 0 : opts.warm ?? 3;
+  for (let s = 0; s < warm * 20; s++) step(0.05);
+  if (once) step(0);
+  const fx = {
     root,
     def,
-    update(dt) { time += Math.min(dt, 0.1); for (const l of layers) l.update(Math.min(dt, 0.1), time); },
-    dispose() { for (const l of layers) l.dispose(); root.removeFromParent(); },
+    once,
+    length,
+    get time() { return time; },
+    update(dt) { if (playing || finish) step(Math.min(dt, 0.1)); },
+    /**
+     * Play from the start (a looping effect just keeps going). `at` places the root (a Vector3 in its
+     * parent's space); `follow` is an Object3D the head tracks each frame. The handle's `done` resolves
+     * when a play-once effect has ended and its last particle faded, or after stop().
+     */
+    play({ at = null, follow: f = null } = {}) {
+      finish?.();
+      if (once) { for (const { made } of layers) made.reset?.(); time = 0; ctx.head.set(0, 0, 0); }
+      playing = true; stopped = false; follow = f;
+      if (at) root.position.copy(at);
+      else if (f && root.parent) { f.getWorldPosition(v); root.position.copy(root.parent.worldToLocal(v)); }
+      const done = new Promise((r) => (finish = r));
+      return { done, stop() { stopped = true; } };
+    },
+    /** Jump to `t` seconds into a play-once effect (an editor's scrub), replaying it from the start. */
+    seek(t) { fx.play({ follow }); while (time < t - 1e-6) step(Math.min(1 / 60, t - time)); },
+    dispose() { finish?.(); for (const { made } of layers) made.dispose(); root.removeFromParent(); },
   };
+  return fx;
 }
