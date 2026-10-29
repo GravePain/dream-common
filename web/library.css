@@ -34,7 +34,7 @@ body.dl-open .dl-panel, .dl-panel.dl-full { display: flex; }
 .dl-count { color: var(--dl-dim); font-size: 12px; flex: 1; }
 .dl-label { display: flex; justify-content: space-between; align-items: center; color: var(--dl-dim); font-size: 12px; }
 .dl-label button { padding: 2px 7px; font-size: 12px; }
-.dl-places { display: flex; flex-direction: column; gap: 3px; max-height: 130px; overflow-y: auto; }
+.dl-places { display: flex; flex-direction: column; gap: 3px; height: 150px; min-height: 56px; max-height: 60vh; overflow-y: auto; resize: vertical; flex: none; }
 .dl-place { display: flex; justify-content: space-between; text-align: left; padding: 4px 8px !important; }
 .dl-place.missing span { color: var(--dl-dim); font-style: italic; }
 .dl-place i { font-style: normal; color: var(--dl-dim); padding: 0 4px; }
@@ -42,8 +42,10 @@ body.dl-open .dl-panel, .dl-panel.dl-full { display: flex; }
 .dl-search { background: var(--dl-field); color: var(--dl-ink); border: 1px solid var(--dl-line); border-radius: 6px; padding: 5px 8px; font: inherit; width: 100%; }
 .dl-kinds { display: flex; gap: 3px; }
 .dl-kinds button { flex: 1; padding: 3px 0; font-size: 11px; }
-.dl-tags { display: flex; flex-wrap: wrap; gap: 4px; max-height: 70px; overflow-y: auto; }
-.dl-tag { padding: 1px 7px !important; font-size: 11px !important; border-radius: 10px !important; }
+.dl-tags { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 5px; height: 110px; min-height: 40px; max-height: 60vh; overflow-y: auto; resize: vertical; flex: none; }
+.dl-tag { padding: 3px 9px !important; font-size: 12px !important; border-radius: 12px !important; }
+.dl-tag i { font-style: normal; font-size: 11px; color: var(--dl-dim); margin-left: 3px; }
+.dl-tag.on i { color: inherit; opacity: 0.7; }
 .dl-items { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 6px; align-content: start; }
 .dl-hint { grid-column: 1 / -1; color: var(--dl-dim); font-size: 12px; line-height: 1.45; margin: 6px 0; }
 .dl-hint code { background: var(--dl-field); padding: 1px 4px; border-radius: 4px; }
@@ -67,3 +69,9 @@ body.dl-open .dl-panel, .dl-panel.dl-full { display: flex; }
 }
 .dl-panel.dl-drop { outline: 3px dashed #d9773a; outline-offset: -6px; }
 .dl-import { font-size: 11px; }
+
+/* in a floating window: fill it, the window supplies the frame */
+.dl-panel.dl-in-window { position: static; display: flex; width: auto; height: 100%; border-radius: 0; background: transparent; backdrop-filter: none; padding: 8px; overflow: hidden; }
+.dl-toggle.in-win, body.dl-open .dl-toggle.in-win { right: 12px; top: 12px; }
+.dl-kinds { flex-wrap: wrap; }
+.dl-kinds button { flex: 1 1 auto; padding: 3px 6px; }

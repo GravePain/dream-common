@@ -66,23 +66,41 @@ function mountPanel({ full = false } = {}) {
     <div class="dl-tags"></div>
     <div class="dl-items"></div>`;
   document.body.append(root);
-  let toggle = null;
+  let toggle = null, win = null;
+  const isOpen = () => document.body.classList.contains('dl-open');
+  const setOpen = (on) => {
+    document.body.classList.toggle('dl-open', on);
+    win?.[on ? 'show' : 'hide']();
+  };
   if (!full) {
     toggle = document.createElement('button');
     toggle.className = 'dl-toggle';
     toggle.textContent = 'Library';
     toggle.title = 'Library (L)';
-    toggle.onclick = () => document.body.classList.toggle('dl-open');
+    toggle.onclick = () => setOpen(!isOpen());
     document.body.append(toggle);
+    // a floating, resizable window like every other Dream panel; the docked panel stays as the fallback
+    import('./ui/window.js').then(({ createWindow }) => {
+      const w = Math.min(460, innerWidth - 24);
+      win = createWindow({
+        id: 'library', title: 'Dream Library', content: root, open: false,
+        x: Math.max(8, innerWidth - w - 12), y: 44, w, h: Math.max(320, innerHeight - 100),
+        onShow: () => document.body.classList.add('dl-open'),
+        onHide: () => document.body.classList.remove('dl-open'),
+      });
+      root.classList.add('dl-in-window');
+      toggle.classList.add('in-win');
+      document.body.classList.toggle('dl-open', win.visible);
+    }).catch(() => {});
   }
   const q = (c) => root.querySelector('.dl-' + c);
-  return { root, toggle, q };
+  return { root, toggle, q, isOpen, setOpen };
 }
 
 export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenZone = null, onOpenUi = null, onOpenSound = null, onOpenSynth = null, onOpenClip = null, onOpenModel = () => {}, onOpenPalette = () => {}, onOpenGenerator = () => {}, onOpenImage = null, full = false } = {}) {
   const problems = new Map(); // generator files that failed to load, by place:path
   const st = { places: [], place: null, items: [], kind: 'all', tags: new Set(), search: '', online: false };
-  const { q } = mountPanel({ full });
+  const { q, isOpen, setOpen } = mountPanel({ full });
   // st.place is the place's id (its index), as the hosts have always been handed it; requests use its slug
   const savePlace = () => (st.places.find((p) => p.save) ?? st.places[0])?.id ?? 0;
   const current = () => st.places.find((p) => p.id === st.place);
@@ -159,7 +177,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenZ
     for (const [t, n] of [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))) {
       const b = document.createElement('button');
       b.className = 'dl-tag' + (st.tags.has(t) ? ' on' : '');
-      b.textContent = `${t} ${n}`;
+      b.innerHTML = `${esc(t)} <i>${n}</i>`;
       b.onclick = () => { st.tags.has(t) ? st.tags.delete(t) : st.tags.add(t); renderTags(); renderItems(); };
       box.append(b);
     }
@@ -343,8 +361,8 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenZ
     BASE,
     ready,
     get online() { return st.online; },
-    toggle: () => document.body.classList.toggle('dl-open'),
-    show: () => document.body.classList.add('dl-open'),
+    toggle: () => setOpen(!isOpen()),
+    show: () => setOpen(true),
     /** After a save: show the save place and its new item. */
     async refreshSaved() { st.place = savePlace(); renderPlaces(); await loadItems(); },
     refreshIfShowing(place) { if (st.place === place || current()?.slug === place) loadItems(); },
