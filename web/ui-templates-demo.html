@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game UI demo</title>
 <link rel="stylesheet" href="ui/theme.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Alegreya+Sans:wght@500;700&display=swap">
 <style>
   body { margin: 0; padding: 16px; background: #1e1612; color: #e8d9b8; font-family: system-ui, sans-serif; }
   h1 { font-size: 16px; margin: 0 0 4px; }
@@ -18,6 +19,12 @@
   .say { font: bold 8px/10px monospace; color: #e8d9b8; overflow: hidden; padding: 1px 2px; }
   .label { display: flex; align-items: center; justify-content: center; font: bold 8px monospace; color: #3a2a22; }
   #err { color: #e07060; white-space: pre-wrap; }
+  #project-y { margin-top: 16px; padding: 12px; background: #0e141c; border-top: 1px solid #c9a453; }
+  #project-y h2 { font: 700 15px Cinzel, serif; color: #e9c873; letter-spacing: 2px; margin: 0 0 4px; }
+  #project-y .scale > h2 { font-size: 13px; }
+  .py { font-family: 'Alegreya Sans', sans-serif; color: #e8e2cf; display: flex; align-items: center; overflow: hidden; white-space: nowrap; }
+  .py.cinzel { font-family: Cinzel, serif; font-weight: 700; letter-spacing: 2px; color: #d8d0b8; }
+  .py.gold { color: #e9c873; }
 </style>
 </head>
 <body class="dream-ui">
@@ -25,6 +32,7 @@
 <p class="hint">Each piece is loaded from the Dream Library (kind <code>ui</code>) with <code>/common/ui-templates.js</code> and drawn at x2 and x3.</p>
 <div id="err"></div>
 <div id="out"></div>
+<div id="project-y"><h2>PROJECT Y</h2><p class="hint">Drawn in Dream Paint by <code>dream-paint/project-y.js</code> from the artboards (nothing imported): the main menu and the merchant at x1 and x2, placeholder icons in the bag cells, a bar at 60 %.</p></div>
 <script type="module">
 import { listLibrary } from './library.js';
 import { loadUi, nineSlice, fillBar, putInSlot, slotNames, useUi } from './ui-templates.js';
@@ -101,7 +109,88 @@ for (const scale of [2, 3]) {
   }
   document.getElementById('out').append(sec);
 }
-window.demo = { items, inv, bar, button, dialogue, icon };
+// ---------- Project Y ----------
+const py = (name) => items.find((i) => i.path === `UI/Project Y/${name}.ui.json`);
+async function getPy(name) {
+  const it = py(name);
+  if (!it) { err(`No UI/Project Y/${name} in the library (Paint: Make Project Y set).`); return null; }
+  return { ...(await loadUi(it.place, it.path)), item: it };
+}
+const [menu, shop, pyBar] = await Promise.all([getPy('Main menu'), getPy('Merchant'), getPy('Health bar')]);
+let pyIcons = [], pyIcon = {};
+try {
+  const { fileUrl } = await import('./library.js');
+  const found = (await listLibrary({ kind: 'sprite' })).items.filter((i) => i.path.startsWith('Sprites/Project Y/Icon ')).sort((a, b) => a.path.localeCompare(b.path));
+  for (const i of found) pyIcon[i.name.replace(/^Icon /, '')] = fileUrl(i.place, i.path);
+  pyIcons = Object.values(pyIcon);
+} catch (e) { err('No Project Y icons: ' + e.message); }
+/** Text over a slot, sized to the scale (the sprites bake no text). */
+function say(parent, ui, slot, text, scale, cls = '', px = 14, pad = 4) {
+  if (!ui.slots.some((s) => s.name === slot)) return;
+  const t = putInSlot(parent, ui, slot, el('div', 'py ' + cls), scale);
+  t.textContent = text;
+  t.style.fontSize = px * scale + 'px';
+  t.style.paddingLeft = pad * scale + 'px';
+}
+const pyOut = document.getElementById('project-y');
+for (const scale of [1, 2]) {
+  const sec = el('section', 'scale'), h = el('h2');
+  h.textContent = `x${scale}`;
+  sec.append(h);
+  if (menu) {
+    const m = nineSlice(el('div'), menu.ui, { scale, size: true });
+    m.dataset.piece = 'py-menu';
+    say(m, menu.ui, 'title', 'PROJECT Y', scale, 'cinzel gold', 40);
+    ['CONTINUE', 'NEW GAME', 'LOAD GAME', 'SETTINGS', 'QUIT'].forEach((b, i) => say(m, menu.ui, `button ${i}`, b, scale, 'cinzel', 18));
+    say(m, menu.ui, 'list title', 'SAVE SLOTS', scale, 'cinzel gold', 14);
+    [['Rook', 'Level 7 · Old Quarter · 3 h 12 m', 'CONTINUE'], ['Wren', 'Level 2 · Harbour · 41 m', 'CONTINUE'], ['Empty slot', '', 'START']].forEach(([n, d, a], i) => {
+      say(m, menu.ui, `save ${i} name`, n, scale, 'cinzel', 15); say(m, menu.ui, `save ${i} detail`, d, scale, '', 13); say(m, menu.ui, `save ${i} action`, a, scale, 'gold', 12);
+    });
+    say(m, menu.ui, 'create', 'CREATE CHARACTER', scale, 'cinzel gold', 15);
+    say(m, menu.ui, 'version', 'v0.1 · Esc goes back', scale, '', 12);
+    block(sec, `${menu.item.path}`, m);
+  }
+  if (shop) {
+    const s = nineSlice(el('div'), shop.ui, { scale, size: true });
+    s.dataset.piece = 'py-merchant';
+    say(s, shop.ui, 'title', 'MERCHANT', scale, 'cinzel gold', 15);
+    say(s, shop.ui, 'gold', '1,240', scale, 'gold', 14, 22); // past the coin drawn at the slot's left
+    say(s, shop.ui, 'greeting', 'Old Quarter Trader · buys at 50%', scale, '', 13);
+    say(s, shop.ui, 'tab buy', 'BUY', scale, 'cinzel', 12);
+    s.lastChild.style.color = '#1a1408'; // the active tab is gold: dark ink, as on the artboard
+    say(s, shop.ui, 'tab buyback', 'BUYBACK (0)', scale, 'cinzel', 12);
+    say(s, shop.ui, 'bag title', 'INVENTORY', scale, 'cinzel gold', 12);
+    [['Health Potion', 'Consumable', '40', 'potion'], ['Iron Shard', 'Material', '25', 'ore'], ['Hunter Bow', 'Main hand', '650', 'bow'], ['Shadow Boots', 'Feet', '140', 'boots'], ['Old Tome', 'Curio', '60', 'scroll'], ['Spark Orb', 'Aura', '4800', 'gem']].forEach(([n, sub, pr, ic], i) => {
+      const card = shop.ui.slots.find((x) => x.name === `card ${i}`);
+      if (!card) return;
+      const holder = el('div');
+      Object.assign(holder.style, { position: 'absolute', left: card.x * scale + 'px', top: card.y * scale + 'px', width: card.w * scale + 'px', height: card.h * scale + 'px' });
+      s.append(holder);
+      const t = el('div', 'py');
+      t.innerHTML = `<b style="font-size:${14 * scale}px;margin-left:${56 * scale}px">${n}</b><span style="font-size:${12 * scale}px;margin-left:${8 * scale}px;color:#a8b3c0">${sub}</span><span class="gold" style="margin-left:auto;margin-right:${10 * scale}px;font-size:${13 * scale}px;color:#e9c873">${pr}</span>`;
+      Object.assign(t.style, { height: '100%' });
+      holder.append(t);
+      if (pyIcon[ic]) { const im = el('img'); im.src = pyIcon[ic]; Object.assign(im.style, { position: 'absolute', left: 10 * scale + 'px', top: 12 * scale + 'px', width: 32 * scale + 'px', height: 32 * scale + 'px', imageRendering: 'pixelated' }); holder.append(im); }
+    });
+    // placeholder icons in the first bag cells, centred at whole-pixel scale
+    slotNames(shop.ui).filter((n) => n.startsWith('cell ')).slice(0, 10).forEach((name, k) => {
+      if (!pyIcons.length) return;
+      const im = el('img');
+      im.src = pyIcons[k % pyIcons.length];
+      im.dataset.cell = name;
+      putInSlot(s, shop.ui, name, im, scale);
+      Object.assign(im.style, { padding: 7 * scale + 'px', imageRendering: 'pixelated' });
+    });
+    block(sec, `${shop.item.path}: icons in the bag cells`, s);
+  }
+  if (pyBar) {
+    const b = fillBar(el('div'), pyBar.ui, 0.6, { scale });
+    b.dataset.piece = 'py-bar';
+    block(sec, `${pyBar.item.path}: 60 %`, b);
+  }
+  pyOut.append(sec);
+}
+window.demo = { items, inv, bar, button, dialogue, icon, menu, shop, pyBar, pyIcons };
 </script>
 </body>
 </html>
