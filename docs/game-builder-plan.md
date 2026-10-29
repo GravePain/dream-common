@@ -95,6 +95,7 @@ is completed before Dream Server, and each tool's runtime half moves to `dream-c
   Done 2026-10-29: play-once effects (`fx.play({ at, follow })` with `done`), per-layer start and duration, ring and trail layers, Library textures and flipbooks, six presets in `Effects/Abilities/`.
 - **Dream Forge:** collider proxies (box, capsule, cylinder) per piece in the template; mesh colliders
   from `.mesh.json` only later.
+  Done 2026-10-29: auto-fit on save, the Colliders panel in Edit, `meta.colliders` + GLB root `extras.colliders` (`{ shape, size, trigger, x, y, z, rotY }`), `kit.collider` for Blender pieces.
 - **Dream Library:** a `licence` field per place; publish refuses assets from places not cleared for the
   public client (`K:\non-cc0-packs` exists beside `cc0-packs`). Publish also resolves every reference
   (piece paths, template ids, effect and sound names) and fails on a miss, not only the shape check.
