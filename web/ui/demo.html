@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" data-app="forge">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dream editor kit</title>
+<link rel="stylesheet" href="./theme.css">
+<script type="importmap">
+{ "imports": {
+  "three": "/common/vendor/three/build/three.module.js",
+  "three/addons/": "/common/vendor/three/examples/jsm/"
+} }
+</script>
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  canvas { display: block; }
+  #bar { position: fixed; left: 0; right: 0; top: 0; height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--ui-panel-2); border-bottom: 1px solid var(--ui-line); z-index: 30; }
+  #bar .sep { flex: 1; }
+  #state { color: var(--ui-dim); font-family: var(--ui-mono); }
+  .row { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+  .row label { width: 70px; color: var(--ui-dim); }
+</style>
+</head>
+<body class="dream-ui">
+<div id="bar">
+  <span class="dream-brand">Editor kit demo</span>
+  <select id="app" title="Accent per app">
+    <option>forge</option><option>library</option><option>world</option><option>paint</option><option>effects</option><option>characters</option><option>portal</option>
+  </select>
+  <button data-mode="view" title="Q">View</button>
+  <button data-mode="translate" title="W">Move</button>
+  <button data-mode="rotate" title="E">Rotate</button>
+  <button data-mode="scale" title="R">Scale</button>
+  <button id="space" title="X">Global</button>
+  <button id="windows">Windows</button>
+  <button id="toastBtn">Toast</button>
+  <span class="sep"></span>
+  <span id="state"></span>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { createWindow, windowMenu } from './window.js';
+import { createGizmo } from './gizmo.js';
+import { toast, checkLibrary } from './toast.js';
+
+const app = document.getElementById('app');
+try { app.value = localStorage.getItem('dream-ui:demo:app') || 'forge'; } catch {}
+document.documentElement.dataset.app = app.value;
+app.onchange = () => { document.documentElement.dataset.app = app.value; try { localStorage.setItem('dream-ui:demo:app', app.value); } catch {} };
+
+// ---- a viewport with a test cube ----
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg').trim());
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+camera.position.set(4, 3, 5);
+const orbit = new OrbitControls(camera, renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2), new THREE.GridHelper(10, 10, 0x555555, 0x333333));
+const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8899aa }));
+cube.position.y = 0.5;
+scene.add(cube);
+
+const inspector = document.createElement('div');
+
+// ---- the gizmo, with undo ----
+const undo = [];
+const snap = () => ({ p: cube.position.clone(), q: cube.quaternion.clone(), s: cube.scale.clone() });
+let before = null;
+const gizmo = createGizmo({
+  THREE, TransformControls, camera, dom: renderer.domElement, scene, orbit,
+  onStart: () => { before = snap(); },
+  onChange: (proxy) => { cube.position.copy(proxy.position); cube.quaternion.copy(proxy.quaternion); cube.scale.copy(proxy.scale); refresh(); },
+  onEnd: () => { undo.push(before); refresh(); },
+  onState: (s) => {
+    for (const b of document.querySelectorAll('[data-mode]')) b.classList.toggle('on', (s.view ? 'view' : s.mode) === b.dataset.mode);
+    document.getElementById('space').textContent = s.space === 'local' ? 'Local' : 'Global';
+    refresh(s);
+  },
+});
+gizmo.attachTo(cube);
+gizmo.setMode('translate');
+for (const b of document.querySelectorAll('[data-mode]')) b.onclick = () => gizmo.setMode(b.dataset.mode);
+document.getElementById('space').onclick = () => gizmo.toggleSpace();
+addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key.toLowerCase() === 'z' && undo.length) {
+    const u = undo.pop();
+    cube.position.copy(u.p); cube.quaternion.copy(u.q); cube.scale.copy(u.s);
+    gizmo.attachTo(cube);
+    refresh();
+  }
+});
+
+// ---- windows ----
+const wInspector = createWindow({ id: 'inspector', title: 'Inspector', content: inspector, x: innerWidth - 300, y: 50, w: 280, h: 220 });
+const help = document.createElement('div');
+help.innerHTML = `<p><b>Q</b> view &middot; <b>W</b> move &middot; <b>E</b> rotate &middot; <b>R</b> scale &middot; <b>X</b> local / global &middot; <b>Z</b> pivot / centre</p>
+<p>Hold <b>Ctrl</b> while dragging to snap (0.25 m, 15&deg;, 0.1). <b>Ctrl+Z</b> undoes a drag.</p>
+<p>Drag windows by the title, resize from any edge; they snap to the screen and to each other (hold Alt to stop it). Reload: they come back where you left them.</p>`;
+createWindow({ id: 'help', title: 'How to', content: help, x: 12, y: 50, w: 300, h: 210 });
+createWindow({ id: 'empty', title: 'A third window', content: document.createTextNode('Close me, then reopen from Windows.'), x: 12, y: 280, w: 240, h: 120 });
+document.getElementById('windows').onclick = (e) => windowMenu(e.currentTarget);
+document.getElementById('toastBtn').onclick = () => toast('A toast in the app’s accent.');
+
+function refresh(s) {
+  const f = (v) => v.toFixed(2), e = new THREE.Euler().setFromQuaternion(cube.quaternion);
+  const d = (r) => THREE.MathUtils.radToDeg(r).toFixed(1);
+  inspector.innerHTML = `<div class="row"><label>Position</label>${f(cube.position.x)} ${f(cube.position.y)} ${f(cube.position.z)}</div>
+<div class="row"><label>Rotation</label>${d(e.x)} ${d(e.y)} ${d(e.z)}</div>
+<div class="row"><label>Scale</label>${f(cube.scale.x)} ${f(cube.scale.y)} ${f(cube.scale.z)}</div>
+<div class="row"><label>Undo</label>${undo.length} step${undo.length === 1 ? '' : 's'}</div>`;
+  const st = document.getElementById('state');
+  st.textContent = `${gizmo.mode} · ${gizmo.space} · ${gizmo.pivot}${s?.snapping ? ' · snap' : ''}`;
+}
+refresh();
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+resize();
+renderer.setAnimationLoop(() => { orbit.update(); renderer.render(scene, camera); });
+
+checkLibrary();
+// for checks from the console
+window.demo = { gizmo, cube, undo, wInspector, THREE };
+</script>
+</body>
+</html>

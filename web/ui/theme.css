@@ -1,0 +1,110 @@
+/* The Dream tools' one theme: dark, neutral, editor-like. Each tool sets <html data-app="forge"> (or library,
+   world, paint, effects, characters, portal) and gets its own accent; nothing else differs between tools.
+   The colour palette a piece is painted with never touches these tokens. */
+:root {
+  color-scheme: dark;
+  --ui-bg: #1b1d21;          /* behind everything */
+  --ui-panel: #25282d;       /* windows, panels */
+  --ui-panel-2: #2d3036;     /* raised: title bars, headers */
+  --ui-field: #1f2125;       /* inputs */
+  --ui-hover: #353941;
+  --ui-line: #3a3e45;
+  --ui-text: #d9dce1;
+  --ui-dim: #8e949d;
+  --ui-good: #5fbf7a;
+  --ui-warn: #e0b04a;
+  --ui-bad: #e0605a;
+  --ui-radius: 6px;
+  --ui-radius-sm: 4px;
+  --ui-gap: 8px;
+  --ui-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ui-mono: ui-monospace, Consolas, monospace;
+  --ui-size: 13px;
+  --ui-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --accent: #8e949d;
+  --accent-2: #b4bac2;
+  --accent-ink: #111;        /* text on an accent fill */
+}
+html[data-app="forge"]      { --accent: #e8823a; --accent-2: #f2a868; }
+html[data-app="library"]    { --accent: #d6aa3c; --accent-2: #e8c870; }
+html[data-app="world"]      { --accent: #5cb85c; --accent-2: #8fd48f; }
+html[data-app="paint"]      { --accent: #e0609a; --accent-2: #ef93bd; }
+html[data-app="effects"]    { --accent: #9a72e0; --accent-2: #bba0ef; }
+html[data-app="characters"] { --accent: #3cb8b0; --accent-2: #74d4ce; }
+html[data-app="portal"]     { --accent: #9aa0a8; --accent-2: #c0c5cc; }
+
+.dream-ui, .dream-ui * { box-sizing: border-box; }
+.dream-ui {
+  font: var(--ui-size)/1.4 var(--ui-font);
+  color: var(--ui-text);
+}
+body.dream-ui { background: var(--ui-bg); margin: 0; }
+
+.dream-ui button, .dream-ui .btn {
+  font: inherit; color: var(--ui-text); background: var(--ui-panel-2); border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm); padding: 4px 10px; cursor: pointer;
+}
+.dream-ui button:hover { background: var(--ui-hover); }
+.dream-ui button:disabled { opacity: 0.45; cursor: default; }
+.dream-ui button.on, .dream-ui button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.dream-ui button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.dream-ui input[type=text], .dream-ui input[type=number], .dream-ui select, .dream-ui textarea {
+  font: inherit; color: var(--ui-text); background: var(--ui-field); border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-sm); padding: 3px 6px;
+}
+.dream-ui input:focus, .dream-ui select:focus, .dream-ui textarea:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+.dream-ui input[type=range], .dream-ui input[type=checkbox] { accent-color: var(--accent); }
+.dream-ui a { color: var(--accent-2); }
+.dream-ui hr { border: 0; border-top: 1px solid var(--ui-line); margin: var(--ui-gap) 0; }
+.dream-ui ::-webkit-scrollbar { width: 10px; height: 10px; }
+.dream-ui ::-webkit-scrollbar-thumb { background: var(--ui-line); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+.dream-ui ::-webkit-scrollbar-track { background: transparent; }
+
+/* the app's name in the accent, wherever a tool shows it */
+.dream-brand { font-weight: 600; color: var(--accent); }
+
+/* ---- windows (window.js) ---- */
+.dw-win {
+  position: fixed; display: flex; flex-direction: column; min-width: 160px; min-height: 60px;
+  background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow); overflow: hidden; z-index: 20;
+}
+.dw-win.front { z-index: 21; }
+.dw-win.front .dw-title { border-bottom-color: var(--accent); }
+.dw-win.min { height: auto !important; min-height: 0; }
+.dw-win.min .dw-body, .dw-win.min .dw-grip { display: none; }
+.dw-title {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; background: var(--ui-panel-2);
+  border-bottom: 1px solid var(--ui-line); cursor: move; user-select: none; flex: none;
+}
+.dw-title .dw-name { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dw-title button { background: none; border: 0; padding: 0 5px; color: var(--ui-dim); line-height: 1; }
+.dw-title button:hover { color: var(--ui-text); background: var(--ui-hover); }
+.dw-body { flex: 1; overflow: auto; padding: var(--ui-gap); min-height: 0; }
+.dw-edge { position: absolute; z-index: 1; }
+.dw-edge.n, .dw-edge.s { left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.dw-edge.e, .dw-edge.w { top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.dw-edge.n { top: -3px; } .dw-edge.s { bottom: -3px; } .dw-edge.e { right: -3px; } .dw-edge.w { left: -3px; }
+.dw-edge.ne, .dw-edge.nw, .dw-edge.se, .dw-edge.sw { width: 12px; height: 12px; }
+.dw-edge.ne { top: -3px; right: -3px; cursor: nesw-resize; } .dw-edge.sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
+.dw-edge.nw { top: -3px; left: -3px; cursor: nwse-resize; } .dw-edge.se { bottom: -3px; right: -3px; cursor: nwse-resize; }
+
+/* the list of closed windows, to open them again */
+.dw-menu { position: fixed; z-index: 40; background: var(--ui-panel-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius); box-shadow: var(--ui-shadow); padding: 4px; min-width: 160px; }
+.dw-menu button { display: block; width: 100%; text-align: left; border: 0; background: none; }
+.dw-menu button:hover { background: var(--ui-hover); }
+.dw-menu .open::before { content: "\2713"; color: var(--accent); margin-right: 6px; }
+.dw-menu .shut::before { content: ""; display: inline-block; width: 1em; margin-right: 6px; }
+
+/* ---- toasts (toast.js) ---- */
+.dream-toasts { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
+.dream-toast {
+  pointer-events: auto; font: var(--ui-size)/1.4 var(--ui-font); color: var(--ui-text); background: var(--ui-panel-2);
+  border: 1px solid var(--ui-line); border-left: 3px solid var(--accent); border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow); padding: 7px 12px; max-width: min(560px, calc(100vw - 32px)); transition: opacity 0.3s;
+}
+.dream-toast.warn { border-left-color: var(--ui-warn); }
+.dream-toast.bad { border-left-color: var(--ui-bad); }
+.dream-toast.good { border-left-color: var(--ui-good); }
+.dream-toast.fade { opacity: 0; }

@@ -22,6 +22,8 @@ export const fileUrl = (place, p) => `${BASE}/api/file?place=${encodeURIComponen
  * Resolves to { places, items, truncated } where truncated names the places whose listing was cut short.
  * Throws when the library is not reachable.
  */
+const wrapped = (r) => (Array.isArray(r) ? { items: r, truncated: false } : r);
+
 export async function listLibrary({ kind = null, places = null } = {}) {
   const get = async (url) => {
     const r = await fetch(BASE + url);
@@ -31,11 +33,12 @@ export async function listLibrary({ kind = null, places = null } = {}) {
   const all = await get('/api/places');
   const want = places ? all.filter((p) => places.includes(p.slug) || places.includes(p.id)) : all.filter((p) => p.exists);
   const kinds = kind ? (Array.isArray(kind) ? kind : [kind]).join(',') : '';
-  const lists = await Promise.all(want.map((p) => get(`/api/list?wrap=1&place=${encodeURIComponent(p.slug)}${kinds ? `&kind=${encodeURIComponent(kinds)}` : ''}`).catch(() => ({ items: [], truncated: false }))));
+  // an older Library (not restarted since slugs) has no slug and answers a plain array
+  const lists = await Promise.all(want.map((p) => get(`/api/list?wrap=1&place=${encodeURIComponent(p.slug ?? p.id)}${kinds ? `&kind=${encodeURIComponent(kinds)}` : ''}`).then(wrapped).catch(() => ({ items: [], truncated: false }))));
   const items = [], truncated = [];
   lists.forEach((l, k) => {
     const p = want[k];
-    if (l.truncated) truncated.push(p.slug);
+    if (l.truncated) truncated.push(p.slug ?? p.id);
     // place stays the index the tools have always used (links, saved records); placeId is the stable id
     for (const it of l.items) items.push({ ...it, place: p.id, placeId: p.slug, placeName: p.name });
   });
@@ -110,7 +113,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenM
   async function loadItems() {
     q('items').innerHTML = '<p class="dl-hint">Reading…</p>';
     try {
-      const r = await json(`/api/list?wrap=1&place=${encodeURIComponent(current()?.slug ?? st.place)}`);
+      const r = wrapped(await json(`/api/list?wrap=1&place=${encodeURIComponent(current()?.slug ?? st.place)}`));
       st.items = r.items;
       st.truncated = r.truncated;
     } catch (e) {
