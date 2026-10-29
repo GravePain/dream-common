@@ -3,7 +3,7 @@
   --dl-panel: rgba(34, 24, 18, 0.86);
   --dl-ink: #e8d9b8;
   --dl-dim: #b8a888;
-  --dl-accent: #d9773a;
+  --dl-accent: var(--accent, #d9773a); /* the tool's accent from theme.css; Forge orange when there is none */
   --dl-field: rgba(255, 240, 210, 0.08);
   --dl-line: rgba(232, 217, 184, 0.18);
   font: 13px/1.35 system-ui, sans-serif;
