@@ -7,7 +7,7 @@ Plain JS, no DOM. JSON over one WebSocket at `/ws`, one message object per frame
 
 | `t` | Fields | When |
 | --- | --- | --- |
-| `hello` | `name` (1 to 24 letters, digits, spaces, `_ ' . -`), `character: { place, path, name }` (a kind `character` piece in the Library, checked with it), `zone` (`"place\|path/zone.json"`) | first, once |
+| `hello` | `token` (the account's session token from `/api/login`; required unless the server runs `AUTH=off`, where `name`, 1 to 24 letters, digits, spaces, `_ ' . -`, names the player), `resume` (optional: the reconnection token from a `welcome`, to take over the same player), `character: { place, path, name }` (a kind `character` piece in the Library, and with a token one of the account's), `zone` (`"place\|path/zone.json"`) | first, once |
 | `intent` | `intent`: the sim's intents unchanged (`move`, `moveTo`, `face`, `interact`, `stop`, see `sim/intents.js`); `seq` (optional): the client's counter, a positive integer that must increase | any time after `welcome` |
 | `ping` | `at`: the client's clock in ms | every couple of seconds |
 
@@ -15,13 +15,13 @@ Plain JS, no DOM. JSON over one WebSocket at `/ws`, one message object per frame
 
 | `t` | Fields |
 | --- | --- |
-| `welcome` | `uid` (this player's), `tick`, `zone`, `spawn: { x, z }` (where it stands: the zone's spawn, or where it left), `players: [{ uid, name, character }]` (the others) |
+| `welcome` | `uid` (this player's), `tick`, `zone`, `spawn: { x, z }` (where it stands: the zone's spawn, or where it left), `players: [{ uid, name, character }]` (the others), `resume` (the reconnection token: valid while the room holds this player, 60 s after a drop), `exp` (ms), `resumed: true` after a resume |
 | `join` | `uid, name, character`: another player came in |
 | `leave` | `uid`: another player left |
 | `snapshot` | `tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq }]`: one per cell of the player's area of interest (its cell and the neighbours), after every 20 Hz tick, movers only; the in-process server's shape (`sim/index.js`) plus `at` (the server's `Date.now()` at that tick) and, on players only, `seq` (the last one the server applied for that player; absent before its first sequenced intent, never on npcs) |
 | `event` | `tick, type, ...`: the sim's `interact` (`target, verb, ok, reason`) and `blocked` (`reason, by, x, z`) for this player |
 | `pong` | `at` (echoed), `tick`, `serverAt` (the server's `Date.now()`) |
-| `error` | `reason`; sent before the server closes the socket |
+| `error` | `reason`, `code` (`auth`, `limit`, `malformed`, `full`; `CODES` in `protocol.js`); sent before the server closes the socket |
 
 ## Rules
 

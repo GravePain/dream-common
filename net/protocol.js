@@ -1,14 +1,16 @@
 // dream-common/net: the Dream Server's wire protocol, shared by the server and every client. JSON, one
 // message object per WebSocket frame, its type in `t`. README.md has the table. Plain JS, no DOM.
 //
-//   client -> server   hello { name, character: { place, path, name }, zone }   first, once
+//   client -> server   hello { token?, resume?, name?, character: { place, path, name }, zone }   first, once
+//                        (token: the account's session token, required unless the server runs AUTH=off, where
+//                        name is; resume: the reconnection token from welcome, to take over the same player)
 //                      intent { intent, seq }                                  the sim's intents, unchanged; seq optional
 //                      ping { at }                                             at: the client's clock (ms)
-//   server -> client   welcome { uid, tick, zone, spawn, players: [{ uid, name, character }] }
+//   server -> client   welcome { uid, tick, zone, spawn, players: [{ uid, name, character }], resume, exp, resumed? }
 //                      join { uid, name, character }    leave { uid }
 //                      snapshot { tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq? }] }   per cell of interest
 //                      event { tick, type, ... }        the sim's interact and blocked, for that player
-//                      pong { at, tick, serverAt }      error { reason }
+//                      pong { at, tick, serverAt }      error { reason, code }   code: one of CODES
 import { checkIntent } from '../sim/index.js';
 
 export const PATH = '/ws';
@@ -17,6 +19,10 @@ export const NAME = /^[\p{L}\p{N} _'.-]{1,24}$/u;
 export const MAX_BYTES = 4096;
 export const CLIENT = ['hello', 'intent', 'ping'];
 export const SERVER = ['welcome', 'join', 'leave', 'snapshot', 'event', 'pong', 'error'];
+/** error.code: auth (no or bad token, a resume too late), limit (rates, sockets per address), malformed, full. */
+export const CODES = ['auth', 'limit', 'malformed', 'full'];
+/** A token as tokens.js makes it: base64url payload, a dot, base64url signature. */
+const TOKEN = /^[A-Za-z0-9_-]{8,1024}\.[A-Za-z0-9_-]{16,128}$/;
 
 const str = (v, max = 512) => typeof v === 'string' && v.length > 0 && v.length <= max;
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -44,13 +50,17 @@ export function parseClient(raw) {
   if (!m || typeof m !== 'object' || Array.isArray(m) || !CLIENT.includes(m.t)) return { error: 'unknown message type' };
   switch (m.t) {
     case 'hello': {
+      if (m.token !== undefined && !(typeof m.token === 'string' && TOKEN.test(m.token))) return { error: 'hello: token malformed' };
+      if (m.resume !== undefined && !(typeof m.resume === 'string' && TOKEN.test(m.resume))) return { error: 'hello: resume malformed' };
+      // with a token the account names the player; without one (AUTH=off, or a resume) the name is checked here
       const name = typeof m.name === 'string' ? m.name.trim() : '';
-      if (!NAME.test(name)) return { error: 'hello: a name of 1 to 24 letters, digits, spaces or _ \' . -' };
+      if (name ? !NAME.test(name) : !(m.token || m.resume)) return { error: 'hello: a name of 1 to 24 letters, digits, spaces or _ \' . -' };
       const c = m.character;
       if (!c || typeof c !== 'object' || !place(c.place) || !safePath(c.path) || !/\.glb$/i.test(c.path)) return { error: 'hello: character must be { place, path to a .glb, name }' };
       const zone = zoneRef(m.zone);
       if (!zone) return { error: 'hello: zone must be "place|path/zone.json"' };
-      return { msg: { t: 'hello', name, character: { place: c.place, path: c.path, name: str(c.name, 64) ? c.name : c.path.split('/').pop().replace(/\.glb$/i, '') }, zone: m.zone, zoneAt: zone } };
+      const extra = { ...(m.token ? { token: m.token } : {}), ...(m.resume ? { resume: m.resume } : {}) };
+      return { msg: { t: 'hello', name, ...extra, character: { place: c.place, path: c.path, name: str(c.name, 64) ? c.name : c.path.split('/').pop().replace(/\.glb$/i, '') }, zone: m.zone, zoneAt: zone } };
     }
     case 'intent': {
       const intent = checkIntent(m.intent);
