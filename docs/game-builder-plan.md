@@ -85,6 +85,31 @@ the user's own K:\dev-hafen-server.
 3. Replays: seed + inputs re-simulated after changes as regression tests (as in Skyfall Blade).
 4. Browser + screenshots (like Skyfall Blade's devsnap) only for visual checks.
 
+## Modules
+Existing: Portal 5170 (hub, staging status, publish history), Dream Library 5230 (+ zone, entity template,
+item, ability, quest kinds), Dream Forge 5210 (+ colliders, LODs), Dream World 5240 (zone editor + Play
+button), Dream Paint 5250 (+ UI/item icons), Dream Effects 5260 (ability/hit VFX), Dream Characters 5270.
+
+New authoring: Dream Codex 5280 (items, abilities, stats, modifiers, loot, NPC templates, shops),
+Dream Story 5290 (quests, dialogue, triggers, flags), Dream Motion 5300 (animation library, retarget,
+clip-to-ability timing), Dream Sound 5310 (later).
+
+Shared code in dream-common: `sim/`, `net/`, `schemas/`, `client/` (game runtime + HUD).
+
+Server side: Dream Server (gateway, zones, store, chat as plugins), Dream Publish (validate, bake, pack,
+push), Dream GM (VPN only), Dream Bots (test/load bots, replay regressions). Dream Client = the public
+game, built from `client/` + `sim/`, the same runtime as Play mode.
+
+Build order: schemas + sim, Play button, Dream Server, Codex, Publish + GM, Bots, then Story/Motion/Sound.
+
+## Ideas from SpacetimeDB, FOnline, AzerothCore (ideas only; BSL / MIT / GPL-2.0)
+1. Entity properties declared once with **save and sync flags** (saved, server-only, owner-only, public).
+2. NPC and quest behaviour as **event → condition → action** data rows (no code in content).
+3. **Conditional:** state changes as named, logged transactions (replay + audit), adopted only if the
+   cost is reasonable. Measure CPU, memory and storage per player-hour with bots first; fall back to
+   logging only player intents + periodic snapshots (cheap, still replayable) if it isn't.
+4. **Grid wake/sleep**: cells with no players nearby stop ticking.
+
 ## First concrete steps
 1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells.
 2. `sim/` skeleton: world, entities, tick, intent movement on a heightfield.
