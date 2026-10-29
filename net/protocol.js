@@ -2,13 +2,13 @@
 // message object per WebSocket frame, its type in `t`. README.md has the table. Plain JS, no DOM.
 //
 //   client -> server   hello { name, character: { place, path, name }, zone }   first, once
-//                      intent { intent }                                       the sim's intents, unchanged
+//                      intent { intent, seq }                                  the sim's intents, unchanged; seq optional
 //                      ping { at }                                             at: the client's clock (ms)
 //   server -> client   welcome { uid, tick, zone, spawn, players: [{ uid, name, character }] }
 //                      join { uid, name, character }    leave { uid }
-//                      snapshot { tick, cell, entities: [{ uid, x, y, z, yaw, anim }] }   per cell of interest
+//                      snapshot { tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq? }] }   per cell of interest
 //                      event { tick, type, ... }        the sim's interact and blocked, for that player
-//                      pong { at, tick }                error { reason }
+//                      pong { at, tick, serverAt }      error { reason }
 import { checkIntent } from '../sim/index.js';
 
 export const PATH = '/ws';
@@ -54,7 +54,10 @@ export function parseClient(raw) {
     }
     case 'intent': {
       const intent = checkIntent(m.intent);
-      return intent ? { msg: { t: 'intent', intent } } : { error: 'intent: malformed' };
+      if (!intent) return { error: 'intent: malformed' };
+      if (m.seq === undefined) return { msg: { t: 'intent', intent } };
+      // seq: the client's counter for prediction; must be a positive integer (the room drops repeats)
+      return Number.isSafeInteger(m.seq) && m.seq > 0 ? { msg: { t: 'intent', intent, seq: m.seq } } : { error: 'intent: seq must be a positive integer' };
     }
     case 'ping': return finite(m.at) ? { msg: { t: 'ping', at: m.at } } : { error: 'ping: at must be a number' };
   }

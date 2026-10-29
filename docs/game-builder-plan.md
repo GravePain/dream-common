@@ -37,6 +37,7 @@ the user's own K:\dev-hafen-server.
 - **Step 2 done (2026-10-29):** `sim/` skeleton (heightfield, world with cell hash, colliders, intents, 20 Hz
   tick with seeded RNG and replayable intent log, wander/patrol npcs, local server with per-cell snapshots);
   `sim/README.md`, `test/sim.test.mjs`.
+- **Step 5 done (2026-10-29):** prediction, reconciliation and interpolation for Play online: sequenced intents (`seq` on intents and in players' snapshots, `snapshot.at`, `pong.serverAt`), the prediction core in `net/predict.js` (tested in Node) wrapped by Dream World's `play/predict.ts` on server-numbered ticks, others drawn from a 1 s buffer 100 ms (150 when jittery) behind the server's clock, the HUD's round trip / one-way / delay / corrections line, a dev-only lag switch, `dream-server/bots/bot.mjs`, and the server's timer waking every 10 ms so its ticks land on time.
 - **Step 3 done (2026-10-29):** Play mode in Dream World (`src/play/`) on `createSim` + `createLocalServer`, intents in and snapshots out; the zone-to-sim bridge (piece colliders from the Library meta, else the model's bounds; animals as wander npcs); the character runtime in `web/client/character.js`, shared with Dream Characters; Project Y HUD bars; effects on interact.
 
 ## Phase 1: Play mode, single player (Dream World)
