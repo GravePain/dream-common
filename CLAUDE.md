@@ -62,6 +62,8 @@ Rules of thumb when working here:
 - Randomness is seeded; a piece rebuilds the same from the same seed.
 - Servers bind all interfaces: this is a home LAN setup, not hardened for the internet (see `docs/review-2026-10-29.md`, group B).
 - Heredocs in Bash mangle backslashes on this machine; patch files with a Python script written by the Write tool.
+- When a tool's design conflicts with the server side (`docs/game-builder-plan.md`: formats, sim, protocol), the
+  server side wins; the tool adapts.
 
 ## Ports at a glance
 

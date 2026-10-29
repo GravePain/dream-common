@@ -112,8 +112,10 @@ Windows:
 Removed: the bottom game toolbar and the pop-up tray, plus the leftover Cyber kit switch and tower / neon tools
 (review item D22).
 
-Saved scenes need parents. `save.ts` objects get an optional `parent` and `name`, and old scenes load flat.
-Assumed: there is a scene version field to migrate on. Check `save.ts` first.
+Saved scenes need parents. The hierarchy saves into the zone and cell formats of `game-builder-plan.md`
+(Phase 0), not into `.scene.json`: the server side's formats take priority over the tools when the two
+plans conflict (decided 2026-10-29). So the Dream World editor rebuild (step C) starts after the zone
+schema exists; old scenes load flat through the converter that step writes.
 
 `main.ts` is 1,335 lines (review D21). Selection, gizmo, hierarchy and UI wiring come out into their own modules as
 part of this work, not before it.
@@ -171,9 +173,12 @@ Write scopes never overlap: no two agents edit the same files at the same time.
 | D | Generate a piece, add a second primitive, move it with the same gizmo, enter mesh mode and extrude a face, paint, save; the piece reopens the same. |
 | E | Each tool opens with the shared theme and its own accent; nothing else changes. |
 
-## Questions for Graves
+## Decisions (Graves, 2026-10-29)
 
-1. Upstream World Builder: icon cache only (its own small server change), or keep its `assets.ts` identical to
-   Dream World's so future merges stay easy?
-2. Accent colours: the table above, or your own?
-3. A dark editor theme, like Unity's, or light?
+1. Upstream World Builder: icon cache only, its own small server change. Its `assets.ts` and Dream World's
+   are separate files from here on.
+2. Accent colours: the table above.
+3. Dark editor theme.
+4. Order: `review-ui-plan-2026-10-29.md`, slot 1 first (fast icons and the open series review items, a
+   minimum editor kit, theming), then the Paint game UI templates, then Dream Sound, then steps C and D.
+5. Where this plan and `game-builder-plan.md` conflict, the server side wins.
