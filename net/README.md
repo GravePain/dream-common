@@ -15,14 +15,14 @@ Plain JS, no DOM. JSON over one WebSocket at `/ws`, one message object per frame
 
 | `t` | Fields |
 | --- | --- |
-| `welcome` | `uid` (this player's), `tick`, `zone`, `spawn: { x, z }` (where it stands: the zone's spawn, or where it left), `players: [{ uid, name, character }]` (the others), `resume` (the reconnection token: valid while the room holds this player, 60 s after a drop), `exp` (ms), `resumed: true` after a resume, `name` (the zone's), `states: { uid: { open } }` (doors and chests, world scope) |
+| `welcome` | `uid` (this player's), `tick`, `zone`, `content: { id, built }` (the live pack it plays, step 9; null on a server run with `CONTENT=library`), `spawn: { x, z }` (where it stands: the zone's spawn, or where it left), `players: [{ uid, name, character }]` (the others), `resume` (the reconnection token: valid while the room holds this player, 60 s after a drop), `exp` (ms), `resumed: true` after a resume, `name` (the zone's), `states: { uid: { open } }` (doors and chests, world scope) |
 | `transfer` | `zone, resume`: a portal took this player out of its zone; say `hello { resume, zone, character }` again on the same socket to arrive there (same uid and account) |
 | `join` | `uid, name, character`: another player came in |
 | `leave` | `uid`: another player left |
 | `snapshot` | **binary** (below; shared cell frames since step 9); decodes to `tick, at, cell, entities: [{ uid, x, y, z, yaw, anim, seq }]`: one per cell of the player's area of interest (its cell and the neighbours), after every 20 Hz tick, movers only; the in-process server's shape (`sim/index.js`) plus `at` (the server's `Date.now()` at that tick) and, on players only, `seq` (the last one the server applied for that player; absent before its first sequenced intent, never on npcs) |
-| `event` | `tick, type, ...`: the sim's `interact` (`target, verb, ok, reason`) and `blocked` (`reason, by, x, z`) for this player |
+| `event` | `tick, type, ...`: the sim's `interact` (`target, verb, ok, reason`) and `blocked` (`reason, by, x, z`) for this player; `state` (`uid, state`, doors and chests, to everyone); `reload` (`built, slots`: a promoted pack was swapped in, to everyone; the client re-fetches the zone's `pack.json` and adds `slots` to its decoder) |
 | `pong` | `at` (echoed), `tick`, `serverAt` (the server's `Date.now()`) |
-| `error` | `reason`, `code` (`auth`, `limit`, `malformed`, `full`; `CODES` in `protocol.js`); sent before the server closes the socket |
+| `error` | `reason`, `code` (`auth`, `limit`, `malformed`, `full`, `unpublished`: the zone has no live content pack; `CODES` in `protocol.js`); sent before the server closes the socket |
 
 ## Rules
 

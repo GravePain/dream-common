@@ -22,8 +22,11 @@ export const NAME = /^[\p{L}\p{N} _'.-]{1,24}$/u;
 export const MAX_BYTES = 4096;
 export const CLIENT = ['hello', 'intent', 'ping'];
 export const SERVER = ['welcome', 'join', 'leave', 'snapshot', 'event', 'pong', 'error', 'transfer'];
-/** error.code: auth (no or bad token, a resume too late), limit (rates, sockets per address), malformed, full. */
-export const CODES = ['auth', 'limit', 'malformed', 'full'];
+/**
+ * error.code: auth (no or bad token, a resume too late), limit (rates, sockets per address), malformed, full,
+ * unpublished (the zone has no live content pack on this server).
+ */
+export const CODES = ['auth', 'limit', 'malformed', 'full', 'unpublished'];
 /** A token as tokens.js makes it: base64url payload, a dot, base64url signature. */
 const TOKEN = /^[A-Za-z0-9_-]{8,1024}\.[A-Za-z0-9_-]{16,128}$/;
 
