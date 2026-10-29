@@ -138,6 +138,22 @@ Build order: schemas + sim, Play button, Dream Server, Codex, Publish + GM, Bots
 - **Asset budget as a design rule** (Hordes): vertex colours, small textures, stream after login.
 - **Content compiled** from editor output to versioned bundles (Ryzom's primitives + sheets idea).
 
+## Language: TypeScript for the shared game code
+`sim/`, `net/`, `schemas/`, `client/` and Dream Server are **TypeScript** (types on both sides catch
+mistakes before testing, and Claude works best in it). The existing Dream tools stay plain JS and use
+the compiled output. Schemas are TS types plus runtime validators generated from one source.
+
+## RPG-JS (MIT, TypeScript, 2D) — ideas only
+- One game, two modes: same code single-player in the browser or on the server (= our Play button vs
+  Dream Server).
+- Events as objects with hooks (`onAction`, `onPlayerTouch`, `onChanges`) for engine-side behaviour;
+  creators still author event → condition → action data.
+- Player/module hooks (`onConnected`, `onJoinMap`, `onLevelUp`) = our feature registry + event bus.
+- Built-in items, skills, states, classes, levels as a checklist for Dream Codex.
+- Not adopted: 2D (Tiled/PixiJS), mid-rewrite to v5, one main developer. Same verdict as ET:
+  take the architecture, not the framework. Skyfall Blade's fixed-tick seeded sim and co-op are the
+  in-house reference for starting `sim/`.
+
 ## First concrete steps
 1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells.
 2. `sim/` skeleton: world, entities, tick, intent movement on a heightfield.
