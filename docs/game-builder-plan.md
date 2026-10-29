@@ -37,6 +37,7 @@ the user's own K:\dev-hafen-server.
 - **Step 2 done (2026-10-29):** `sim/` skeleton (heightfield, world with cell hash, colliders, intents, 20 Hz
   tick with seeded RNG and replayable intent log, wander/patrol npcs, local server with per-cell snapshots);
   `sim/README.md`, `test/sim.test.mjs`.
+- **Step 3 done (2026-10-29):** Play mode in Dream World (`src/play/`) on `createSim` + `createLocalServer`, intents in and snapshots out; the zone-to-sim bridge (piece colliders from the Library meta, else the model's bounds; animals as wander npcs); the character runtime in `web/client/character.js`, shared with Dream Characters; Project Y HUD bars; effects on interact.
 
 ## Phase 1: Play mode, single player (Dream World)
 - A Play button: spawn a Dream Characters character, third-person camera, walk on terrain with collision.
