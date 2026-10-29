@@ -110,6 +110,34 @@ Build order: schemas + sim, Play button, Dream Server, Codex, Publish + GM, Bots
    logging only player intents + periodic snapshots (cheap, still replayable) if it isn't.
 4. **Grid wake/sleep**: cells with no players nearby stop ticking.
 
+## Netcode decisions (Gambetta, Valve, Fiedler, Colyseus, geckos.io, HYTOPIA, Hordes.io, Ryzom Core)
+- **Own small `ws` server, not Colyseus.** Its Schema state would couple `sim/` to its types and its
+  StateView is weak at large AOI; pre-1.0 churn. Borrow: seat reservation before connect, reconnection
+  tokens with a hold window, validate every message (disconnect on failure), patch rate separate from
+  tick, graceful shutdown, load-test harness.
+- **ECS: Miniplex-style** (MIT; plain JS objects as entities, archetype queries) or a ~200-line in-house
+  equivalent. Not bitECS (typed arrays clash with JSON templates; MPL). Save/sync flags drive serializers.
+- **Transport:** binary WebSocket (`perMessageDeflate: false`) behind a transport interface with
+  reliable and unreliable lanes; geckos.io (WebRTC) or WebTransport for the unreliable lane later, only
+  if measured loss hurts. Keep WS fallback.
+- **Model:** server-authoritative; client predicts only its own movement and cosmetic cast starts;
+  never damage/HP/death. Server reconciliation via `lastInputSeq`, smooth corrections over ~100 ms.
+  Others interpolated ~100 ms in the past (150 ms on jitter). No full lag-compensation rewind: melee and
+  tab-target get range/arc tolerance (0.5–1 m) server-side.
+- **Numbers:** 20 Hz sim and snapshots near, ≤10 Hz far; inputs once per tick carrying last 3; server
+  input buffer 1–2 ticks, repeat last move ≤3 ticks; seeded RNG, fixed dt 0.05.
+- **Snapshots:** delta against each client's acked baseline (keep ~32), per-entity field bitmask, full
+  state on AOI enter. Quantise position int16 relative to cell origin, yaw uint8/16, HP % byte.
+  ~6–10 bytes per moving entity; packet cap ~1.2 KB with a priority accumulator. AOI = 3×3 cells,
+  ~8 m leave hysteresis.
+- **Messages:** C_HELLO, C_INPUT, C_MOVE_TO, C_CAST, C_ACK, C_PING; S_WELCOME, S_SNAPSHOT, S_ENTER,
+  S_LEAVE, S_EVENT[], S_CAST_RESULT, S_PONG, S_CHAT. Clock sync from PING/PONG.
+- **Scale target:** a few hundred concurrent players per zone process; zone-owned state with explicit
+  cross-zone handoff (avoid Ryzom's shared-memory mirror and global singletons). One process with code-level
+  service boundaries until profiling says split.
+- **Asset budget as a design rule** (Hordes): vertex colours, small textures, stream after login.
+- **Content compiled** from editor output to versioned bundles (Ryzom's primitives + sheets idea).
+
 ## First concrete steps
 1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells.
 2. `sim/` skeleton: world, entities, tick, intent movement on a heightfield.
