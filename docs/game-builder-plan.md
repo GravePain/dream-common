@@ -8,16 +8,26 @@ the user's own K:\dev-hafen-server.
 
 1. **Server in Node, not the Python hafen-server.** The simulation must be one headless JS module
    (`dream-common/sim/`) that the server runs authoritatively and the client runs for prediction.
+   `sim/` imports no renderer: its own small vector maths, no three.js (Skyfall Blade's `sim.ts`
+   imports three, so its pattern is ported, not its imports). The client wraps sim state for three.js.
    hafen-server speaks the Haven & Hearth UDP protocol to Seatribe's client and uses their assets, so it
    can't ship as-is; mine its game-system designs (food/stamina, wounds, crafting, farming, claims, tick
-   subsystems, GM portal) as references when porting systems to `sim/`.
+   subsystems, GM portal) as references when porting systems to `sim/`. hafen-server's own plan
+   (`dev-hafen-server/PLAN.md`) is paused while this is built; the two compete for the same time.
 2. **Content is declarative, schema-validated JSON** in the library (no relational tables, no JS-as-data).
 3. **The Dream editors are the authoring tools**; the server reads published content, never client edits.
 4. **Interest management from day one**: world split into fixed cells.
+5. **Finish the base tools first** (section below). The tools are the game's content pipeline and
+   parts of them run inside the game client and server, so they come before the server work.
 
 ## Phase 0: formats (dream-common)
-- Schemas (like fx.js SCHEMA) for: scene, piece, character, **zone**, **entity template**, item, ability.
-- Split scenes into 64 m cells (`zone/<id>/cells/x0z0.json`) for diffs, streaming and AOI.
+- Schemas (like fx.js SCHEMA) for what the first steps need: **zone** (terrain + cells), **cell**
+  (entities), **entity template** with its components, and character (what Dream Characters saves).
+  Item, ability and quest schemas arrive with Dream Codex and Dream Story, not here.
+- Split a zone's entities into 50 m cells (`zone/<id>/cells/x0z0.json`) for diffs, streaming and AOI.
+  50 divides every Dream World map size (100, 200, 400 m; `main.ts` MAP_SIZES). Terrain (heights,
+  splat, water) stays one file per zone: cutting it into cells would add seam and edge-ownership work
+  for no gain until a zone is bigger than a browser wants to hold.
 - Entity = template id + components: `spawn`, `npc` (stationary/patrol/wander/follow/flee), `collider`,
   `interact`, `loot`, `shop`, `door/portal`, `light/fx`. Inspector panels in Dream World per component.
 - Generic modifier model for items/abilities/buffs: `{stat, op, value, duration}`.
@@ -27,14 +37,15 @@ the user's own K:\dev-hafen-server.
 - Runs through `sim/` locally with a fake in-process "server", so the netcode seam exists from the start.
 - Heightfield + piece colliders exported from the scene (navigation/validation data).
 
-## Phase 2: Dream Server (new module, port 5280)
+## Phase 2: Dream Server (new module, port 5320)
 - Node + `ws`, a small own protocol (JSON first, binary later). One process hosts zone rooms.
 - Fixed tick (20 Hz). Clients send **intents only** (move dir, click-to-move target, interact, use ability);
   the server steps movement and validates targets against the heightfield.
 - AOI: clients subscribe to their cell + neighbours; snapshots/deltas per cell.
 - Rooms per zone, persisted, disposed when empty; handoff at zone portals.
 - Persistence behind a small repository interface: JSON files first (like hafen-server saves), SQLite later.
-- State scopes: player (durable), world (shared durable), session (room-only).
+- State scopes: player (durable), world (shared durable), session (room-only). The World store writes
+  player scope on a timer and on disconnect; the Gateway reads it for the character list.
 - Auth: simple accounts with hashed passwords and signed session tokens (no default secrets).
 
 ## Phase 3: publish pipeline
@@ -51,6 +62,35 @@ the user's own K:\dev-hafen-server.
 ## Phase 5: scale and test
 - Headless bot clients (like hafen-server's playbridge) for load and regression tests.
 - Binary deltas, zone processes across machines, Morty as the first host.
+
+## Finish the base tools first
+The Dream tools are not just editors: their output is the game's content and some of their code runs
+in the game client and server (the character assembler, the effects runtime, the UI). So the base set
+is completed before Dream Server, and each tool's runtime half moves to `dream-common` as it is needed.
+
+- **Dream Sound (5310), a new base tool.** An extremely light version of the GravepainAudio Unity
+  project, not a port of it: the existing `gravepain-audio-web/PLAN.md` (Pad, Studio and a DJ game on
+  one engine) is too big for this and is not the plan here; only its Unity-to-Web-Audio mapping table
+  is reused as a reference. Dream Sound works on Graves's own CC0 sounds in the library and makes:
+  a **slicer** (cut a recording into one-shots, trim, normalise, save each as a library sound), a few
+  **filters** (low/high pass, echo, reverb, gate, from native Web Audio nodes), the GravepainAudio
+  **basic synth** (subtractive, presets, render a note to a sound), a **note generator** (the chord,
+  melody and riff dice) and a **clip editor** (steps over a kit, play, render to a clip). Output is
+  `.sound.json` + audio companions and `.clip.json` in the library; the game client plays them through
+  a small `dream-common/web/audio.js` runtime, the same one the editor previews with.
+- **Dream Paint: UI templates.** The sprite editor gets templates for game UI: inventory grid, hotbar,
+  dialogue box, health and stamina bars, buttons, frames and icons at fixed sizes, saved as
+  `.ui.json` + sprites with nine-slice borders and named slots. The game HUD in `client/` is built
+  from these, so a UI drawn in Paint is what the player sees.
+- **Dream Characters:** its assembler (parts, tints, scale, animations) moves to `dream-common/client/`
+  and the tool imports it, so Play mode and the game spawn exactly what the tool saved.
+- **Dream Effects:** `fx.js` already is the shared runtime; ability and hit presets are added when
+  Codex needs them.
+- **Dream Forge:** collider proxies (box, capsule, cylinder) per piece in the template; mesh colliders
+  from `.mesh.json` only later.
+- **Dream Library:** a `licence` field per place; publish refuses assets from places not cleared for the
+  public client (`K:\non-cc0-packs` exists beside `cc0-packs`). Publish also resolves every reference
+  (piece paths, template ids, effect and sound names) and fails on a miss, not only the shape check.
 
 ## Services (separable; one Node process at first, split later)
 | service | job | exposure |
@@ -90,17 +130,19 @@ Existing: Portal 5170 (hub, staging status, publish history), Dream Library 5230
 item, ability, quest kinds), Dream Forge 5210 (+ colliders, LODs), Dream World 5240 (zone editor + Play
 button), Dream Paint 5250 (+ UI/item icons), Dream Effects 5260 (ability/hit VFX), Dream Characters 5270.
 
-New authoring: Dream Codex 5280 (items, abilities, stats, modifiers, loot, NPC templates, shops),
-Dream Story 5290 (quests, dialogue, triggers, flags), Dream Motion 5300 (animation library, retarget,
-clip-to-ability timing), Dream Sound 5310 (later).
+New authoring: Dream Sound 5310 (base tool, see above), Dream Codex 5280 (items, abilities, stats,
+modifiers, loot, NPC templates, shops; may start as a tab in the Library page), Dream Story 5290
+(quests, dialogue, triggers, flags), Dream Motion 5300 (animation library, retarget, clip-to-ability
+timing; later, if needed).
 
 Shared code in dream-common: `sim/`, `net/`, `schemas/`, `client/` (game runtime + HUD).
 
-Server side: Dream Server (gateway, zones, store, chat as plugins), Dream Publish (validate, bake, pack,
+Server side: Dream Server 5320 (gateway, zones, store, chat as plugins), Dream Publish (validate, bake, pack,
 push), Dream GM (VPN only), Dream Bots (test/load bots, replay regressions). Dream Client = the public
 game, built from `client/` + `sim/`, the same runtime as Play mode.
 
-Build order: schemas + sim, Play button, Dream Server, Codex, Publish + GM, Bots, then Story/Motion/Sound.
+Build order: Dream Sound and the Paint UI templates (finish the base tools), schemas + sim, Play button,
+Dream Server, Codex, Publish + GM, Bots, then Story and Motion.
 
 ## Ideas from SpacetimeDB, FOnline, AzerothCore (ideas only; BSL / MIT / GPL-2.0)
 1. Entity properties declared once with **save and sync flags** (saved, server-only, owner-only, public).
@@ -151,8 +193,11 @@ the compiled output. Schemas are TS types plus runtime validators generated from
 - Player/module hooks (`onConnected`, `onJoinMap`, `onLevelUp`) = our feature registry + event bus.
 - Built-in items, skills, states, classes, levels as a checklist for Dream Codex.
 - Not adopted: 2D (Tiled/PixiJS), mid-rewrite to v5, one main developer. Same verdict as ET:
-  take the architecture, not the framework. Skyfall Blade's fixed-tick seeded sim and co-op are the
-  in-house reference for starting `sim/`.
+  take the architecture, not the framework. Skyfall Blade's fixed-tick seeded sim is the in-house
+  reference for starting `sim/`. Its co-op is not a netcode reference: the host's browser runs the one
+  sim at 60 Hz and guests draw snapshots with no prediction (`net.ts`). Prediction, reconciliation,
+  interpolation and delta snapshots are all new code with no precedent in the series: the riskiest
+  part of Phase 2, gated by first concrete step 4 before any gameplay system.
 
 ## First concrete steps
 1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells.

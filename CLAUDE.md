@@ -66,3 +66,5 @@ Rules of thumb when working here:
 ## Ports at a glance
 
 5170 portal · 5180 World Builder · 5190 Skyfall Blade · 5210 Forge · 5230 Library · 5240 World · 5250 Paint · 5260 Effects · 5270 Characters
+
+Planned (`docs/game-builder-plan.md`, nothing built yet): 5280 Codex · 5290 Story · 5300 Motion · 5310 Sound · 5320 Dream Server
