@@ -104,6 +104,7 @@ is a later slot of its own. The order section at the end says how.
 | 2 | **Paint game UI templates** (`.ui.json`, nine-slice sprites, inventory first) | `dream-paint/*`, `dream-common/web/ui-templates.js` (the loader the game HUD will use) | needs nothing from 1 but the theme |
 | 3 | **Dream Sound** (5310) | new repo | game builder plan |
 | 4 | **C and D: the editor rebuilds** (hierarchy, inspector, windows everywhere, D21 splits, parents saved into the zone format) | as the plan says | after the zone schema (game builder plan, step 1); D19 tests for `mesh.js` land here |
+| 4 (World) | **Done 2026-10-29**: kit `menubar.js`, `tree.js`, `inspector.js`; Dream World's Hierarchy, Inspector, Library windows, shared selection, groups and parents saved into zones, `main.ts` split, hierarchy model tests | `dream-common/web/ui/*`, `dream-world/*` | Forge's rebuild (D) is still to come |
 
 Done for slot 1 means the plan's step A check (two timings, reported) plus: Paint and Effects open with
 the network cable out; every tool shows its accent; a down Library produces a toast in every tool.

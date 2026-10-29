@@ -14,108 +14,145 @@
 <style>
   html, body { height: 100%; overflow: hidden; }
   canvas { display: block; }
-  #bar { position: fixed; left: 0; right: 0; top: 0; height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--ui-panel-2); border-bottom: 1px solid var(--ui-line); z-index: 30; }
-  #bar .sep { flex: 1; }
   #state { color: var(--ui-dim); font-family: var(--ui-mono); }
-  .row { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
-  .row label { width: 70px; color: var(--ui-dim); }
 </style>
 </head>
 <body class="dream-ui">
-<div id="bar">
-  <span class="dream-brand">Editor kit demo</span>
-  <select id="app" title="Accent per app">
-    <option>forge</option><option>library</option><option>world</option><option>paint</option><option>effects</option><option>characters</option><option>portal</option>
-  </select>
-  <button data-mode="view" title="Q">View</button>
-  <button data-mode="translate" title="W">Move</button>
-  <button data-mode="rotate" title="E">Rotate</button>
-  <button data-mode="scale" title="R">Scale</button>
-  <button id="space" title="X">Global</button>
-  <button id="windows">Windows</button>
-  <button id="toastBtn">Toast</button>
-  <span class="sep"></span>
-  <span id="state"></span>
-</div>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
-import { createWindow, windowMenu } from './window.js';
+import { createWindow } from './window.js';
 import { createGizmo } from './gizmo.js';
 import { toast, checkLibrary } from './toast.js';
+import { createMenubar } from './menubar.js';
+import { createTree } from './tree.js';
+import { fields, section, addMenu } from './inspector.js';
+import { COMPONENTS } from '../schema/components.js';
 
-const app = document.getElementById('app');
-try { app.value = localStorage.getItem('dream-ui:demo:app') || 'forge'; } catch {}
-document.documentElement.dataset.app = app.value;
-app.onchange = () => { document.documentElement.dataset.app = app.value; try { localStorage.setItem('dream-ui:demo:app', app.value); } catch {} };
+const APPS = ['forge', 'library', 'world', 'paint', 'effects', 'characters', 'sound', 'portal'];
+let appName = 'forge';
+try { appName = localStorage.getItem('dream-ui:demo:app') || 'forge'; } catch {}
+const setApp = (a) => { appName = a; document.documentElement.dataset.app = a; try { localStorage.setItem('dream-ui:demo:app', a); } catch {} };
+setApp(appName);
 
-// ---- a viewport with a test cube ----
+// ---- a viewport with three test cubes, the middle one parented to the first ----
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(devicePixelRatio);
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg').trim());
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
-camera.position.set(4, 3, 5);
+camera.position.set(5, 4, 7);
 const orbit = new OrbitControls(camera, renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2), new THREE.GridHelper(10, 10, 0x555555, 0x333333));
-const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8899aa }));
-cube.position.y = 0.5;
-scene.add(cube);
-
-const inspector = document.createElement('div');
+const objects = new Map();
+const add = (id, name, x, color, parent = null) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color }));
+  m.name = name;
+  m.position.set(x, 0.5, 0);
+  (parent ? objects.get(parent) : scene).add(m);
+  m.userData.components = {};
+  objects.set(id, m);
+};
+add('a', 'Cube A', -2, 0x8899aa);
+add('b', 'Cube B', 2, 0xaa8866, 'a');
+add('c', 'Cube C', 0, 0x77aa77);
+let selected = 'a';
 
 // ---- the gizmo, with undo ----
 const undo = [];
-const snap = () => ({ p: cube.position.clone(), q: cube.quaternion.clone(), s: cube.scale.clone() });
+const cur = () => objects.get(selected);
+const snap = () => ({ id: selected, p: cur().position.clone(), q: cur().quaternion.clone(), s: cur().scale.clone() });
 let before = null;
 const gizmo = createGizmo({
   THREE, TransformControls, camera, dom: renderer.domElement, scene, orbit,
   onStart: () => { before = snap(); },
-  onChange: (proxy) => { cube.position.copy(proxy.position); cube.quaternion.copy(proxy.quaternion); cube.scale.copy(proxy.scale); refresh(); },
-  onEnd: () => { undo.push(before); refresh(); },
-  onState: (s) => {
-    for (const b of document.querySelectorAll('[data-mode]')) b.classList.toggle('on', (s.view ? 'view' : s.mode) === b.dataset.mode);
-    document.getElementById('space').textContent = s.space === 'local' ? 'Local' : 'Global';
-    refresh(s);
-  },
+  onChange: (proxy) => { const o = cur(); o.parent.updateMatrixWorld(true); const m = new THREE.Matrix4().copy(o.parent.matrixWorld).invert().multiply(proxy.matrixWorld); m.decompose(o.position, o.quaternion, o.scale); inspect.set(transformOf(o)); },
+  onEnd: () => { undo.push(before); },
+  onState: (s) => { const el = document.getElementById('state'); if (el) el.textContent = `${s.view ? 'view' : s.mode} · ${s.space} · ${s.pivot}${s.snapping ? ' · snap' : ''}`; },
 });
-gizmo.attachTo(cube);
 gizmo.setMode('translate');
-for (const b of document.querySelectorAll('[data-mode]')) b.onclick = () => gizmo.setMode(b.dataset.mode);
-document.getElementById('space').onclick = () => gizmo.toggleSpace();
 addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.key.toLowerCase() === 'z' && undo.length) {
-    const u = undo.pop();
-    cube.position.copy(u.p); cube.quaternion.copy(u.q); cube.scale.copy(u.s);
-    gizmo.attachTo(cube);
-    refresh();
+    const u = undo.pop(), o = objects.get(u.id);
+    o.position.copy(u.p); o.quaternion.copy(u.q); o.scale.copy(u.s);
+    pick(selected);
   }
 });
 
-// ---- windows ----
-const wInspector = createWindow({ id: 'inspector', title: 'Inspector', content: inspector, x: innerWidth - 300, y: 50, w: 280, h: 220 });
-const help = document.createElement('div');
-help.innerHTML = `<p><b>Q</b> view &middot; <b>W</b> move &middot; <b>E</b> rotate &middot; <b>R</b> scale &middot; <b>X</b> local / global &middot; <b>Z</b> pivot / centre</p>
-<p>Hold <b>Ctrl</b> while dragging to snap (0.25 m, 15&deg;, 0.1). <b>Ctrl+Z</b> undoes a drag.</p>
-<p>Drag windows by the title, resize from any edge; they snap to the screen and to each other (hold Alt to stop it). Reload: they come back where you left them.</p>`;
-createWindow({ id: 'help', title: 'How to', content: help, x: 12, y: 50, w: 300, h: 210 });
-createWindow({ id: 'empty', title: 'A third window', content: document.createTextNode('Close me, then reopen from Windows.'), x: 12, y: 280, w: 240, h: 120 });
-document.getElementById('windows').onclick = (e) => windowMenu(e.currentTarget);
-document.getElementById('toastBtn').onclick = () => toast('A toast in the app’s accent.');
+// ---- the menubar ----
+const bar = createMenubar({
+  app: 'Editor kit demo', portal: '/',
+  menus: [
+    { label: 'File', items: [{ label: 'Toast', key: 'T', run: () => toast('A toast in the app’s accent.') }, '-', { label: 'Disabled item', disabled: () => true }] },
+    { label: 'Edit', items: [{ label: 'Undo', key: 'Ctrl+Z', run: () => dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true })), disabled: () => !undo.length }] },
+    { label: 'View', items: () => APPS.map((a) => ({ label: `Accent: ${a}`, run: () => setApp(a), checked: () => a === appName })) },
+    { label: 'Window', items: 'windows' },
+  ],
+});
+bar.slot.innerHTML = '<span id="state"></span>';
 
-function refresh(s) {
-  const f = (v) => v.toFixed(2), e = new THREE.Euler().setFromQuaternion(cube.quaternion);
-  const d = (r) => THREE.MathUtils.radToDeg(r).toFixed(1);
-  inspector.innerHTML = `<div class="row"><label>Position</label>${f(cube.position.x)} ${f(cube.position.y)} ${f(cube.position.z)}</div>
-<div class="row"><label>Rotation</label>${d(e.x)} ${d(e.y)} ${d(e.z)}</div>
-<div class="row"><label>Scale</label>${f(cube.scale.x)} ${f(cube.scale.y)} ${f(cube.scale.z)}</div>
-<div class="row"><label>Undo</label>${undo.length} step${undo.length === 1 ? '' : 's'}</div>`;
-  const st = document.getElementById('state');
-  st.textContent = `${gizmo.mode} · ${gizmo.space} · ${gizmo.pivot}${s?.snapping ? ' · snap' : ''}`;
+// ---- hierarchy ----
+const nodes = (parent) => [...objects].filter(([, o]) => (parent ? o.parent === objects.get(parent) : o.parent === scene))
+  .map(([id, o]) => ({ id, label: o.name, icon: '▣', visible: o.visible, children: nodes(id), open: true }));
+const tree = createTree({
+  items: () => [{ id: 'scene', label: 'Scene', selectable: false, draggable: false, open: true, children: nodes(null) }],
+  onSelect: (ids) => ids.length && pick(ids[ids.length - 1]),
+  onRename: (id, name) => { objects.get(id).name = name; tree.refresh(); pick(selected); },
+  onVisible: (id, on) => { objects.get(id).visible = on; tree.refresh(); },
+  onMove: (ids, { parent, before: b }) => {
+    const to = parent && parent !== 'scene' ? objects.get(parent) : scene;
+    for (const id of ids) {
+      const o = objects.get(id);
+      to.attach(o); // keeps its world transform
+      if (b && objects.get(b)?.parent === to) { to.children.splice(to.children.indexOf(o), 1); to.children.splice(to.children.indexOf(objects.get(b)), 0, o); }
+    }
+    tree.refresh();
+  },
+});
+createWindow({ id: 'hierarchy', title: 'Hierarchy', content: tree.el, x: 12, y: 46, w: 240, h: 300 });
+
+// ---- inspector ----
+const box = document.createElement('div');
+createWindow({ id: 'inspector', title: 'Inspector', content: box, x: innerWidth - 320, y: 46, w: 300, h: 460 });
+const TRANSFORM = [{ key: 'position', label: 'Position', type: 'vector3', step: 0.05 }, { key: 'rotation', label: 'Rotation', type: 'vector3', step: 1 }, { key: 'scale', label: 'Scale', type: 'number', min: 0.05, max: 20, step: 0.05, slider: true }];
+const transformOf = (o) => ({ position: { ...o.position }, rotation: { x: THREE.MathUtils.radToDeg(o.rotation.x), y: THREE.MathUtils.radToDeg(o.rotation.y), z: THREE.MathUtils.radToDeg(o.rotation.z) }, scale: o.scale.x });
+let inspect = { set() {} };
+function pick(id) {
+  selected = id;
+  const o = cur();
+  gizmo.attachTo(o);
+  tree.select([id]);
+  box.replaceChildren();
+  const t = section('Transform', { sub: o.name });
+  inspect = fields(TRANSFORM, transformOf(o), (path, v) => {
+    const [k, axis] = path.split('.');
+    if (k === 'position') o.position[axis] = v;
+    if (k === 'rotation') o.rotation[axis] = THREE.MathUtils.degToRad(v);
+    if (k === 'scale') o.scale.setScalar(v);
+    gizmo.attachTo(o);
+  });
+  t.body.append(inspect.el);
+  box.append(t.el);
+  // components straight from dream-common/web/schema: no second description
+  const comps = o.userData.components;
+  for (const name of Object.keys(comps)) {
+    const s = section(name, { onRemove: () => { delete comps[name]; pick(id); } });
+    s.body.append(fields(COMPONENTS[name], comps[name], (path, v) => { const ks = path.split('.'); let at = comps[name]; while (ks.length > 1) at = at[ks.shift()] ??= {}; at[ks[0]] = v; if (name === 'light' && path === 'color') o.material.emissive.set(v); }).el);
+    box.append(s.el);
+  }
+  box.append(addMenu('+ Component', () => Object.keys(COMPONENTS).filter((n) => !comps[n]), (n) => {
+    comps[n] = Object.fromEntries(COMPONENTS[n].map((f) => [f.key, structuredClone(f.default)]));
+    pick(id);
+  }));
 }
-refresh();
+const help = document.createElement('div');
+help.innerHTML = `<p><b>Q</b> view &middot; <b>W</b> move &middot; <b>E</b> rotate &middot; <b>R</b> scale &middot; <b>X</b> local / global &middot; <b>Z</b> pivot / centre. Hold <b>Ctrl</b> to snap; <b>Ctrl+Z</b> undoes a drag.</p>
+<p>Hierarchy: click, Ctrl+click, Shift+click; <b>F2</b> or double-click a name renames; drag onto a row to parent, between rows to reorder; the eye hides. Inspector: drag a label to scrub; <b>+ Component</b> adds one from the schema.</p>
+<p>Windows drag, resize, snap (Alt stops it) and come back where you left them. View picks the accent.</p>`;
+createWindow({ id: 'help', title: 'How to', content: help, x: 12, y: 360, w: 300, h: 230 });
+pick('a');
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
@@ -128,7 +165,7 @@ renderer.setAnimationLoop(() => { orbit.update(); renderer.render(scene, camera)
 
 checkLibrary();
 // for checks from the console
-window.demo = { gizmo, cube, undo, wInspector, THREE };
+window.demo = { gizmo, objects, undo, tree, THREE };
 </script>
 </body>
 </html>

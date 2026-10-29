@@ -8,6 +8,7 @@
 
 const SNAP = 10, MIN_W = 160, MIN_H = 60;
 const all = new Map();
+const stack = []; // back to front
 let top = null;
 
 const app = () => document.documentElement.dataset.app || location.pathname.split('/')[1] || 'dream';
@@ -80,7 +81,7 @@ export function createWindow({ id, title = id, content, x = 40, y = 40, w = 300,
     toggle() { win.visible ? win.hide() : win.show(); },
     setTitle(t) { win.title = t; el.querySelector('.dw-name').textContent = t; },
     minimise(on = !win.minimised) { win.minimised = on; apply(); persist(); },
-    destroy() { el.remove(); all.delete(id); },
+    destroy() { el.remove(); all.delete(id); if (stack.includes(win)) stack.splice(stack.indexOf(win), 1); },
   };
 
   function apply() {
@@ -97,7 +98,10 @@ export function createWindow({ id, title = id, content, x = 40, y = 40, w = 300,
     if (top && top !== win) top.el.classList.remove('front');
     top = win;
     el.classList.add('front');
-    parent.append(el); // last child draws on top
+    // stack by z-index, not by moving the element: moving it between pointerdown and click loses the click
+    stack.splice(stack.indexOf(win) >>> 0, stack.includes(win) ? 1 : 0);
+    stack.push(win);
+    stack.forEach((w, i) => { w.el.style.zIndex = String(20 + i); });
   }
 
   // drag (title) and resize (edges), one pointer at a time
