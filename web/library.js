@@ -40,7 +40,7 @@ export async function listLibrary({ kind = null, places = null } = {}) {
     const p = want[k];
     if (l.truncated) truncated.push(p.slug ?? p.id);
     // place stays the index the tools have always used (links, saved records); placeId is the stable id
-    for (const it of l.items) items.push({ ...it, place: p.id, placeId: p.slug, placeName: p.name });
+    for (const it of l.items) if (!kinds || kinds.split(',').includes(it.kind)) items.push({ ...it, place: p.id, placeId: p.slug, placeName: p.name });
   });
   return { places: all, items, truncated };
 }
