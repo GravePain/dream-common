@@ -1,12 +1,13 @@
 /* Dream Library panel: same look in every module. Everything is scoped to .dl-* */
 .dl-panel, .dl-toggle {
-  --dl-panel: rgba(34, 24, 18, 0.86);
-  --dl-ink: #e8d9b8;
-  --dl-dim: #b8a888;
-  --dl-accent: var(--accent, #d9773a); /* the tool's accent from theme.css; Forge orange when there is none */
-  --dl-field: rgba(255, 240, 210, 0.08);
-  --dl-line: rgba(232, 217, 184, 0.18);
-  font: 13px/1.35 system-ui, sans-serif;
+  /* the theme's tokens (dream-common/web/ui/theme.css) when the page has them; the old Forge browns otherwise */
+  --dl-panel: var(--ui-panel, rgba(34, 24, 18, 0.86));
+  --dl-ink: var(--ui-text, #e8d9b8);
+  --dl-dim: var(--ui-dim, #b8a888);
+  --dl-accent: var(--accent, #d9773a);
+  --dl-field: var(--ui-field, rgba(255, 240, 210, 0.08));
+  --dl-line: var(--ui-line, rgba(232, 217, 184, 0.18));
+  font: var(--ui-size, 13px)/1.35 var(--ui-font, system-ui, sans-serif);
   color: var(--dl-ink);
   box-sizing: border-box;
 }
@@ -16,7 +17,7 @@
   padding: 5px 9px; font: inherit; cursor: pointer; margin: 0;
 }
 .dl-panel button:hover, .dl-toggle:hover { border-color: var(--dl-accent); }
-.dl-panel button.on { background: var(--dl-accent); border-color: var(--dl-accent); color: #2a1a10; font-weight: 600; }
+.dl-panel button.on { background: var(--dl-accent); border-color: var(--dl-accent); color: var(--accent-ink, #2a1a10); font-weight: 600; }
 
 .dl-toggle { position: fixed; right: 12px; top: 12px; z-index: 1001; background: var(--dl-panel); }
 body.dl-open .dl-toggle { right: 324px; }
