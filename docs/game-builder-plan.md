@@ -34,6 +34,9 @@ the user's own K:\dev-hafen-server.
 - **Step 1 done (2026-10-29):** schemas in `web/schema/` (zone, cell, entity and templates, components
   with the modifier, character) on one walker, `web/zone.js` (cells, scene <-> zone), Library kind `zone`,
   Save as zone / Open zone in Dream World, Crystal Cascades converted; `docs/zone-format.md`.
+- **Step 2 done (2026-10-29):** `sim/` skeleton (heightfield, world with cell hash, colliders, intents, 20 Hz
+  tick with seeded RNG and replayable intent log, wander/patrol npcs, local server with per-cell snapshots);
+  `sim/README.md`, `test/sim.test.mjs`.
 
 ## Phase 1: Play mode, single player (Dream World)
 - A Play button: spawn a Dream Characters character, third-person camera, walk on terrain with collision.

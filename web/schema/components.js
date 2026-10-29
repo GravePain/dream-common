@@ -1,7 +1,7 @@
 // Entity components: what an entity is made of besides its transform. Each is a field list (see
 // validate.js); an entity's `components` is { <name>: {...} }. Item, ability and quest records are not here:
 // they come with Dream Codex and Dream Story.
-import { validate as walk, defaults as fresh, num, int, str, bool, pick, obj, req } from './validate.js';
+import { validate as walk, defaults as fresh, num, int, str, bool, pick, obj, list, req } from './validate.js';
 
 const point = (key, label) => obj(key, label, [num('x', 'X', -10000, 10000, 0.1, 0), num('z', 'Z', -10000, 10000, 0.1, 0)], { default: { x: 0, z: 0 } });
 
@@ -11,9 +11,10 @@ export const COMPONENTS = {
   /** Where players or a group of things appear. */
   spawn: [str('group', 'Spawn group', 'player'), int('count', 'How many', 1, 100, 1), num('radius', 'Spread', 0, 100, 0.5, 0)],
   /** How a creature or person moves on its own. */
-  npc: [req(pick('mode', 'Behaviour', ['stationary', 'patrol', 'wander', 'follow', 'flee'], 'stationary')), point('home', 'Home'), num('radius', 'Range', 0, 500, 0.5, 14), num('speed', 'Speed', 0, 20, 0.1, 1)],
-  /** Its solid shape for the sim; `size` is x, y, z in metres (a sphere uses x as its radius). */
-  collider: [req(pick('shape', 'Shape', ['box', 'sphere', 'capsule'], 'box')), obj('size', 'Size', [num('x', 'X', 0, 500, 0.05, 1), num('y', 'Y', 0, 500, 0.05, 1), num('z', 'Z', 0, 500, 0.05, 1)], { default: { x: 1, y: 1, z: 1 } }), bool('trigger', 'Trigger only', false)],
+  npc: [req(pick('mode', 'Behaviour', ['stationary', 'patrol', 'wander', 'follow', 'flee'], 'stationary')), point('home', 'Home'), num('radius', 'Range', 0, 500, 0.5, 14), num('speed', 'Speed', 0, 20, 0.1, 1), list('points', 'Patrol points', { type: 'object', fields: [num('x', 'X', -10000, 10000, 0.1, 0), num('z', 'Z', -10000, 10000, 0.1, 0)] }, { default: [] })],
+  /** Its solid shape for the sim; `size` is x, y, z in metres (a sphere uses x as its radius; capsule and cylinder
+   *  are max(x, z) wide and y tall). sim/colliders.js reads it. */
+  collider: [req(pick('shape', 'Shape', ['box', 'sphere', 'capsule', 'cylinder'], 'box')), obj('size', 'Size', [num('x', 'X', 0, 500, 0.05, 1), num('y', 'Y', 0, 500, 0.05, 1), num('z', 'Z', 0, 500, 0.05, 1)], { default: { x: 1, y: 1, z: 1 } }), bool('trigger', 'Trigger only', false)],
   /** Something a player can use. */
   interact: [req(str('verb', 'Verb', 'use')), num('range', 'Range', 0, 20, 0.1, 2)],
   loot: [req(str('table', 'Loot table', ''))],

@@ -56,8 +56,8 @@ the cell its `transform.x, z` falls in: `cellOf(x, z, size)` in `web/zone.js`.
 |---|---|
 | `model` | `place`, `path` (the library piece), `yOffset` (Dream World's lift above ground) |
 | `spawn` | `group`, `count`, `radius` |
-| `npc` | `mode` (stationary, patrol, wander, follow, flee), `home {x, z}`, `radius`, `speed` |
-| `collider` | `shape` (box, sphere, capsule), `size {x, y, z}`, `trigger` |
+| `npc` | `mode` (stationary, patrol, wander, follow, flee), `home {x, z}`, `radius`, `speed`, `points [{x, z}]` (patrol) |
+| `collider` | `shape` (box, sphere, capsule, cylinder), `size {x, y, z}`, `trigger` |
 | `interact` | `verb`, `range` |
 | `loot` / `shop` | `table` (a table id) |
 | `portal` | `zone`, `cell`, `x`, `z` |
