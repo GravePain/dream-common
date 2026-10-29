@@ -212,4 +212,4 @@ the compiled output. Schemas are TS types plus runtime validators generated from
 1. Write zone/cell/entity/component schemas in dream-common and convert one Dream World scene to cells. **Done** (`zone-format.md`).
 2. `sim/` skeleton: world, entities, tick, intent movement on a heightfield.
 3. Play mode in Dream World using `sim/` locally.
-4. Dream Server with one zone, two browsers walking around together.
+4. Dream Server with one zone, two browsers walking around together. **Done 2026-10-29** (`K:\dream-server`, port 5320: rooms running `sim/` at 20 Hz over the shared `sim/bridge.js`, the protocol in `net/`, Play online in Dream World; plain JS for now, no auth, prediction or deltas yet).
