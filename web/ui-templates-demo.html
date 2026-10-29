@@ -1,0 +1,107 @@
+<!doctype html>
+<html data-app="paint">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game UI demo</title>
+<link rel="stylesheet" href="ui/theme.css">
+<style>
+  body { margin: 0; padding: 16px; background: #1e1612; color: #e8d9b8; font-family: system-ui, sans-serif; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .hint { color: #a89478; font-size: 12px; margin: 0 0 12px; }
+  .scale { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; padding: 12px 0; border-top: 1px solid #3a2a22; }
+  .scale > h2 { width: 100%; font-size: 13px; margin: 0; color: #d9773a; }
+  .item { display: flex; flex-direction: column; gap: 6px; }
+  .item > span { font-size: 11px; color: #a89478; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  canvas, img { image-rendering: pixelated; }
+  .say { font: bold 8px/10px monospace; color: #e8d9b8; overflow: hidden; padding: 1px 2px; }
+  .label { display: flex; align-items: center; justify-content: center; font: bold 8px monospace; color: #3a2a22; }
+  #err { color: #e07060; white-space: pre-wrap; }
+</style>
+</head>
+<body class="dream-ui">
+<h1>Game UI from Dream Paint</h1>
+<p class="hint">Each piece is loaded from the Dream Library (kind <code>ui</code>) with <code>/common/ui-templates.js</code> and drawn at x2 and x3.</p>
+<div id="err"></div>
+<div id="out"></div>
+<script type="module">
+import { listLibrary } from './library.js';
+import { loadUi, nineSlice, fillBar, putInSlot, slotNames, useUi } from './ui-templates.js';
+
+const err = (m) => { document.getElementById('err').textContent += m + '\n'; };
+let items = [];
+try { items = (await listLibrary({ kind: 'ui' })).items; } catch (e) { err('The Dream Library is not reachable: ' + e.message); }
+const pick = (template, variant) => items.filter((i) => i.meta?.template === template && (!variant || i.tags.includes(variant))).sort((a, b) => a.path.localeCompare(b.path))[0];
+async function get(template, variant) {
+  const it = pick(template, variant);
+  if (!it) { err(`No ${template}${variant ? ' ' + variant : ''} UI piece in the library (Paint: Make starter set).`); return null; }
+  return { ...(await loadUi(it.place, it.path)), item: it };
+}
+const [inv, bar, button, dialogue, icon] = await Promise.all([get('inventory'), get('bar', 'health'), get('button'), get('dialogue'), get('icon')]);
+
+// ten icons: the library's icon piece first, then small plain ones drawn here so every cell has one
+const COLS = ['#a8502a', '#b8c24a', '#5a6a7a', '#d9773a', '#8a9474', '#e0c79a', '#8c8478', '#7a5c40', '#c9a978'];
+function plainIcon(k) {
+  const c = document.createElement('canvas'), s = 16, g = c.getContext('2d');
+  c.width = c.height = s;
+  g.fillStyle = '#3a2a22';
+  if (k % 3 === 0) g.fillRect(3, 3, 10, 10); else if (k % 3 === 1) { g.fillRect(6, 2, 4, 12); g.fillRect(2, 6, 12, 4); } else for (let y = 0; y < 12; y++) { const h = 6 - Math.abs(y - 5.5); g.fillRect(Math.round(8 - h), y + 2, Math.round(h * 2), 1); }
+  g.fillStyle = COLS[k % COLS.length];
+  if (k % 3 === 0) g.fillRect(4, 4, 8, 8); else if (k % 3 === 1) { g.fillRect(7, 3, 2, 10); g.fillRect(3, 7, 10, 2); } else for (let y = 1; y < 11; y++) { const h = 5 - Math.abs(y - 5.5); if (h > 0) g.fillRect(Math.round(8 - h), y + 2, Math.round(h * 2), 1); }
+  return c.toDataURL();
+}
+const iconUrls = Array.from({ length: 10 }, (_, k) => (k === 0 && icon ? icon.image.src : plainIcon(k)));
+
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+function block(parent, title, node) { const b = el('div', 'item'), s = el('span'); s.textContent = title; b.append(node, s); parent.append(b); }
+
+for (const scale of [2, 3]) {
+  const sec = el('section', 'scale'), h = el('h2');
+  h.textContent = `x${scale}`;
+  sec.append(h);
+  if (inv) {
+    const p = nineSlice(el('div'), inv.ui, { scale, size: true });
+    p.dataset.piece = 'inventory';
+    slotNames(inv.ui).slice(0, 10).forEach((name, k) => {
+      const im = el('img');
+      im.src = iconUrls[k];
+      im.dataset.cell = name;
+      putInSlot(p, inv.ui, name, im, scale);
+      // the icon sits in the cell with a 2 px margin (sheet pixels), crisp
+      Object.assign(im.style, { padding: 2 * scale + 'px' });
+    });
+    block(sec, `${inv.item.path}: ten icons in cells`, p);
+  }
+  if (bar) {
+    const b = fillBar(el('div'), bar.ui, 0.6, { scale });
+    b.dataset.piece = 'bar';
+    block(sec, `${bar.item.path}: 60 %`, b);
+  }
+  if (button) {
+    const row = el('div', 'row');
+    for (const state of Object.keys(button.ui.states)) {
+      const btn = nineSlice(el('div'), button.ui, { scale, state, size: true });
+      btn.dataset.piece = 'button-' + state;
+      const lab = putInSlot(btn, button.ui, 'label', el('div', 'label'), scale);
+      lab.textContent = state;
+      lab.style.fontSize = 4 * scale + 'px';
+      row.append(btn);
+    }
+    block(sec, `${button.item.path}: normal, hover, pressed`, row);
+  }
+  if (dialogue) {
+    const d = nineSlice(el('div'), dialogue.ui, { scale, size: true });
+    d.dataset.piece = 'dialogue';
+    const t = putInSlot(d, dialogue.ui, 'text', el('div', 'say'), scale);
+    t.textContent = 'The well is dry, stranger. Bring water from the creek and I will tell you where the road goes.';
+    Object.assign(t.style, { fontSize: 4 * scale + 'px', lineHeight: 5 * scale + 'px', padding: `${scale}px ${2 * scale}px` });
+    if (icon && dialogue.ui.slots.some((s) => s.name === 'portrait')) { const im = el('img'); im.src = icon.image.src; putInSlot(d, dialogue.ui, 'portrait', im, scale); }
+    block(sec, `${dialogue.item.path}: text in its text area`, d);
+  }
+  document.getElementById('out').append(sec);
+}
+window.demo = { items, inv, bar, button, dialogue, icon };
+</script>
+</body>
+</html>
