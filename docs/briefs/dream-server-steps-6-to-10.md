@@ -157,6 +157,24 @@ saves live in `dream.db`; tests pass.
 Editing happens on the Library's live files today; the server loads whatever is saved. Publishing separates
 authoring from what players see.
 
+0. **First, shared cell frames** (bundled here, tested through this step's checks, not its own unit tests;
+   Graves: "fairly low risk, more backing something out than putting something in"). Step 7's per-client
+   baselines, acks and the 32-tick window track what each client has, and over a WebSocket the server
+   already knows that: TCP delivers everything in order or the socket dies. They also make the encoding
+   cost players × visible entities (200 players in one cell: 14 ms a tick, over the 10 ms target; 100
+   players: 5 ms). Replace them: each cell encodes **one delta frame per tick against its own previous
+   tick**, shared by every client that sees the cell; a client's frame is the cells it sees concatenated
+   (near cells every tick, kept outer cells every other tick as now), plus a **full cell snapshot** when a
+   cell enters its view, on welcome and on resume or transfer, and that player's own record every tick.
+   Remove the `ack` frame, `encodeAck`/`decodeAck`, the ack meter, `WINDOW`, and the per-client typed-array
+   state in `src/deltas.js`; keep the codec's record layout, quantisation, slots and the 1.2 KB cap with
+   nearest-first priority (applied when a client's concatenated frame would exceed the cap: the overflow
+   cells go full next tick rather than delta, so nothing is lost). `net/README.md` loses the ack and
+   baseline sections and gains the per-cell rule. The existing `codec` and `deltas` tests change to the new
+   shape (round trip; a cell delta applies to the previous tick's state; a cell entering the view comes
+   full) rather than growing. Done for this item means: the 200-bot run (`MAX_PLAYERS=400 PER_ADDRESS=400
+   AUTH=off` on 5321) reports under 10 ms a tick with all 200 joined, and two browsers still see each other
+   walk with no stutter.
 1. **Content packs** `dream-common/pack/` (plain JS, shared): `buildPack({ zone, cells, templates, pieces })`
    validates every record against the schema, bakes each placed piece's `collider` components from its
    Library meta (so the server no longer asks the Library for meta at room load), resolves `model` refs to
@@ -185,7 +203,8 @@ authoring from what players see.
 6. **Docs**: `docs/pack-format.md` (new), `dream-server/README.md` (publish, promote, staging/live, content
    URLs), `dream-world/README.md` (Publish), the plan lines for Phase 3.
 
-Scopes: `dream-common/pack/*` (new), `dream-common/test/pack.test.mjs`, `dream-server/*`, `dream-world/src/
+Scopes: `dream-common/net/*` and `dream-common/test/codec.test.mjs` (item 0), `dream-common/pack/*` (new),
+`dream-common/test/pack.test.mjs`, `dream-server/*`, `dream-world/src/
 play/*`, `dream-world/src/{ui.ts,main.ts}` (the menu item wiring only), `docs/pack-format.md`, the plan.
 Not `sim/` (the bridge is used, not changed).
 Done means: edit Crystal Cascades (move a boulder), Publish, see the validation report, Promote on the
