@@ -136,9 +136,13 @@ function applyEntry(sim, p) {
   if (!oneShot(i) && !e.dead) e.order = i;
 }
 
-/** Fire `portal` on entering a portal's trigger; re-arm once the player is out of all its shapes. */
+/**
+ * Fire `portal` on entering a portal's trigger; re-arm once the player is out of all its shapes. A player
+ * who starts inside one (joins, arrives or is put there; `inPortals` unset) is taken as already in it, so
+ * the portal fires only after it has stepped out once.
+ */
 function portals(sim, e) {
-  e.inPortals ??= new Set();
+  if (!e.inPortals) { e.inPortals = new Set(sim.portals.filter((p) => p.shapes.some((s) => touches(s, e, MOVE.radius, MOVE.height))).map((p) => p.uid)); return; }
   for (const p of sim.portals) {
     const inside = p.shapes.some((s) => touches(s, e, MOVE.radius, MOVE.height));
     if (inside && !e.inPortals.has(p.uid)) {

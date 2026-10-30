@@ -77,6 +77,7 @@ the user's own K:\dev-hafen-server.
   `strike` and `bolt` from `Tables/abilities.json`, follow / flee / hostile npcs, items, inventory, loot and
   pickups (`docs/tables.md`), the GM page (`dream-server` `/gm`), and in Dream World the bars, ability bar,
   target ring, damage numbers, inventory and death. Crafting, quests and dialogue are still to come.
+  The hostile npc in the test zone is a stand-in (Graves's robed character): no CC0 animal found.
 
 ## Phase 5: scale and test
 - Headless bot clients (like hafen-server's playbridge) for load and regression tests.
