@@ -188,6 +188,7 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenZ
     return st.items
       .filter((it) => st.kind === 'all' || it.kind === st.kind || (st.kind === 'model' && it.kind === 'character'))
       .filter((it) => [...st.tags].every((t) => it.tags.includes(t)))
+      .filter((it) => full || !it.tags.includes('retired')) // kept on disk, gone from the tools' panels; the Library page still lists them
       .filter((it) => {
         const hay = `${it.name} ${it.path} ${it.tags.join(' ')} ${it.meta.generator ?? ''}`.toLowerCase();
         return words.every((w) => hay.includes(w));

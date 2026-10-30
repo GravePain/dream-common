@@ -29,7 +29,7 @@ All dependency-free (except Dream World, which is Vite). Each is a static folder
 | `Dream Forge` (`dream-forge` on Morty and GitHub) | 5210 | Low-poly models from seeded generators (`generators/*.gen.js`), paint on them, textures from photos; GLB export. | palettes, photos |
 | `dream-paint` | 5250 | Sprites, icons, UI: snapshot any library piece, paint in layers. | brushes, palettes, any piece |
 | `dream-effects` | 5260 | Layered particle and weather effects (`.fx.json`). | `fx.js` presets |
-| `dream-characters` | 5270 | Dress and tint CC0 rigged characters, try animations. | CC0 character packs |
+| `dream-characters` | 5270 | Dress and tint rigged characters in the 8 equipment slots, try animations. | the Ida Faber male and female bases |
 | `dream-sound` | 5310 | Sounds sliced and filtered from CC0 recordings (`.wav` + `.wav.sound.json`), synth presets (`.synth.json`), step clips (`.clip.json` + `.clip.json.wav`); played everywhere through `web/audio.js`. | CC0 sounds, any audio |
 | `dream-world` | 5240 | Worlds from library pieces only; scenes saved back as `.scene.json`. Has a public gallery. | everything above |
 | `dream-forge-creations` | — | Saved Forge output, a library place. | — |
