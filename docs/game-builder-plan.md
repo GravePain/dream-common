@@ -120,6 +120,15 @@ is completed before Dream Server, and each tool's runtime half moves to `dream-c
 | Library + editors | authoring | LAN only (Morty) |
 
 ## Hosting
+- **Target setup (Graves's diagram, 2026-10-30).** Three places. (1) A **private cloud asset Library**
+  (Forge, Sprite, Audio, VFX, Characters, Library) reached by several people over HTTPS 443 in the browser:
+  the authoring side becomes multi-user and leaves the LAN, so the Library's address-based write check
+  gives way to accounts. (2) The **user PC** does content creation with the whole toolset and a Dream
+  Server that is local only. (3) The **online VPS** runs Dream Server and Dream World (the Play client).
+  From the PC to the VPS go three things: **exported zones** (step 9's packs, published and promoted),
+  **supporting assets** (the packs' hashed GLBs, textures, effects, characters) and **settings** (server
+  config, admin accounts). Until then the dev PC and Morty stay functionally equal (both `CONTENT=library`,
+  files synced by start-all's robocopy), and Morty hosts the LAN game.
 - **Morty = development + staging** (LAN only: editors, library, publish pipeline, staging server).
   Not exposed publicly (that would need an OS reinstall, hardening and a DMZ).
 - **VPS = live**, public services only. Morty pushes signed, versioned content packs + server builds
