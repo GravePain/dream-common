@@ -46,7 +46,7 @@ An agent cannot create a GitHub repo (the permission classifier refuses it); ask
 
 ## Assets
 
-Since 2026-10-31 the series may use anything the owner is entitled to: bought packs, CC0 packs, his own work and models he made in Tripo. Nothing pirated or of unknown origin. Note where each pack came from in its `SOURCE.md` or Library meta. A pack's licence can still limit a public build, because a browser client hands its GLBs to whoever plays, so the per-place `licence` field and publish check in `docs/game-builder-plan.md` come before any public client.
+Since 2026-10-31 the series may use anything the owner is entitled to, including packs he paid for. The per-place `licence` field and publish check are planned in `docs/game-builder-plan.md`.
 
 ## Documents that belong here
 
