@@ -1,6 +1,6 @@
 // Entity components: what an entity is made of besides its transform. Each is a field list (see
-// validate.js); an entity's `components` is { <name>: {...} }. Item, ability and quest records are not here:
-// they come with Dream Codex and Dream Story.
+// validate.js); an entity's `components` is { <name>: {...} }. Item, ability and loot records are tables
+// (docs/tables.md, sim/systems/tables.js), not components; quests come with Dream Story.
 import { validate as walk, defaults as fresh, num, int, str, bool, pick, obj, list, req } from './validate.js';
 
 const point = (key, label) => obj(key, label, [num('x', 'X', -10000, 10000, 0.1, 0), num('z', 'Z', -10000, 10000, 0.1, 0)], { default: { x: 0, z: 0 } });
@@ -9,7 +9,7 @@ export const COMPONENTS = {
   /** A library model drawn at the entity's transform. `yOffset` lifts it off the ground (Dream World's Placed). */
   model: [req(str('place', 'Library place', '0')), req(str('path', 'Model path', '')), num('yOffset', 'Lift above ground', -50, 50, 0.01, 0)],
   /** Where players or a group of things appear. */
-  spawn: [str('group', 'Spawn group', 'player'), int('count', 'How many', 1, 100, 1), num('radius', 'Spread', 0, 100, 0.5, 0)],
+  spawn: [str('group', 'Spawn group', 'player'), int('count', 'How many', 1, 100, 1), num('radius', 'Spread', 0, 100, 0.5, 0), num('respawn', 'Respawn after (s)', 0, 86400, 1, 0)],
   /** How a creature or person moves on its own. */
   npc: [req(pick('mode', 'Behaviour', ['stationary', 'patrol', 'wander', 'follow', 'flee'], 'stationary')), point('home', 'Home'), num('radius', 'Range', 0, 500, 0.5, 14), num('speed', 'Speed', 0, 20, 0.1, 1), list('points', 'Patrol points', { type: 'object', fields: [num('x', 'X', -10000, 10000, 0.1, 0), num('z', 'Z', -10000, 10000, 0.1, 0)] }, { default: [] })],
   /** Its solid shape for the sim; `size` is x, y, z in metres (a sphere uses x as its radius; capsule and cylinder
@@ -27,6 +27,14 @@ export const COMPONENTS = {
    * its radius. The fields are Dream World's EffectSave beyond the transform.
    */
   fx: [req(str('type', 'Effect', 'library')), str('path', 'Library effect'), num('radius', 'Radius', 0, 200, 0.1, 3)],
+  /** Health, stamina and speed (step 10, sim/systems/stats.js); missing fields take MOVE's defaults. */
+  stats: [num('health', 'Health', 0, 1e6, 1, 100), num('maxHealth', 'Max health', 1, 1e6, 1, 100), num('stamina', 'Stamina', 0, 1e6, 1, 100), num('maxStamina', 'Max stamina', 0, 1e6, 1, 100), num('speed', 'Speed', 0, 20, 0.1, 4)],
+  /** What an entity carries (players: saved with the record). */
+  inventory: [int('size', 'Slots', 1, 64, 12), list('slots', 'Slots', { type: 'object', fields: [req(str('item', 'Item', '')), int('count', 'Count', 1, 10000, 1)] }, { default: [] })],
+  /** A thing on the ground a player can pick up (`pickup` intent within 2 m). */
+  pickup: [req(str('item', 'Item', '')), int('count', 'Count', 1, 10000, 1)],
+  /** An npc that attacks players within `radius`, chases at `speed` and uses `ability` (sim/systems/ai.js). */
+  hostile: [num('radius', 'Aggro range', 0, 200, 0.5, 8), num('speed', 'Chase speed', 0, 20, 0.1, 3), str('ability', 'Ability', 'strike')],
   /** A Dream World animal: which one (`defId`) and the home it wanders round (AnimalSave). */
   animal: [req(str('defId', 'Animal', '')), point('home', 'Home')],
 };

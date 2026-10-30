@@ -20,7 +20,7 @@ export function cellOf(x, z, size) {
 // ---------- scene records <-> entities ----------
 const rest = (o, keys) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
 const PLACED = ['uid', 'itemId', 'x', 'z', 'rotY', 'rotX', 'rotZ', 'scale', 'yOffset'];
-const ANIMAL = ['uid', 'defId', 'x', 'z', 'homeX', 'homeZ'];
+const ANIMAL = ['uid', 'defId', 'x', 'z', 'homeX', 'homeZ', 'components'];
 const EFFECT = ['uid', 'type', 'x', 'z', 'radius', 'fx', 'rotY', 'y'];
 /** A library item id ("lib0/Creek boulders.glb") as place and path. */
 const libRef = (id) => { const m = /^lib([^/]+)\/(.*)$/.exec(id); return m ? { place: m[1], path: m[2] } : { place: '', path: id }; };
@@ -35,15 +35,21 @@ const toPlaced = (e) => {
   const { place, path, yOffset, ...extra } = e.components.model, t = e.transform;
   return { uid: +e.uid.slice(1), itemId: e.template, x: t.x, z: t.z, rotY: t.rotY, ...(t.rotX ? { rotX: t.rotX } : {}), ...(t.rotZ ? { rotZ: t.rotZ } : {}), scale: t.scale, yOffset, ...extra };
 };
-/** An animal: template = its animal id, an animal component (what AnimalSave carries) and an npc that wanders. */
+/**
+ * An animal: template = its animal id, an animal component (what AnimalSave carries) and an npc that wanders.
+ * Step 10: an AnimalSave may carry `components` (its own npc, hostile, stats, loot, spawn...), which win over
+ * that default npc; back in a scene an animal carries every component beside `animal` once it has any but
+ * the default npc, so a hostile npc survives the editor.
+ */
 const fromAnimal = (a) => ({
   uid: `a${a.uid}`, template: a.defId,
   transform: { x: a.x, y: 0, z: a.z, rotX: 0, rotY: 0, rotZ: 0, scale: 1 },
-  components: { animal: { defId: a.defId, home: { x: a.homeX, z: a.homeZ }, ...rest(a, ANIMAL) }, npc: { mode: 'wander', home: { x: a.homeX, z: a.homeZ }, radius: 14, speed: 1 } },
+  components: { animal: { defId: a.defId, home: { x: a.homeX, z: a.homeZ }, ...rest(a, ANIMAL) }, npc: { mode: 'wander', home: { x: a.homeX, z: a.homeZ }, radius: 14, speed: 1 }, ...(a.components ?? {}) },
 });
 const toAnimal = (e) => {
-  const { defId, home, ...extra } = e.components.animal, t = e.transform;
-  return { uid: +e.uid.slice(1), defId, x: t.x, z: t.z, homeX: home.x, homeZ: home.z, ...extra };
+  const { animal, ...others } = e.components, { defId, home, ...extra } = animal, t = e.transform;
+  const keep = Object.keys(others).some((k) => k !== 'npc');
+  return { uid: +e.uid.slice(1), defId, x: t.x, z: t.z, homeX: home.x, homeZ: home.z, ...extra, ...(keep ? { components: structuredClone(others) } : {}) };
 };
 /** An effect: template "fx:<type>" or "fx:<place|path>", an fx component. */
 const fromEffect = (f) => ({

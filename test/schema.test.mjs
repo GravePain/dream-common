@@ -42,6 +42,33 @@ test('template and modifier records', () => {
   assert.ok(comps.validateModifier({ op: 'add', value: 1 }).some((p) => p.path === 'stat'));
 });
 
+test('step 10 components: stats, inventory, pickup, hostile and spawn.respawn', () => {
+  assert.deepEqual(comps.validateComponent('stats', { health: 50, maxHealth: 80, stamina: 10, maxStamina: 100, speed: 3 }), []);
+  assert.ok(comps.validateComponent('stats', { maxHealth: 0 }).some((p) => p.path === 'stats.maxHealth'));
+  assert.deepEqual(comps.validateComponent('inventory', { size: 12, slots: [{ item: 'potion', count: 2 }] }), []);
+  assert.ok(comps.validateComponent('inventory', { size: 12, slots: [{ count: 2 }] }).some((p) => /slots/.test(p.path)));
+  assert.deepEqual(comps.validateComponent('pickup', { item: 'potion', count: 1 }), []);
+  assert.ok(comps.validateComponent('pickup', { count: 1 }).some((p) => p.path === 'pickup.item'));
+  assert.deepEqual(comps.validateComponent('hostile', { radius: 8, speed: 3, ability: 'strike' }), []);
+  assert.ok(comps.validateComponent('hostile', { radius: -1 }).some((p) => p.path === 'hostile.radius'));
+  assert.deepEqual(comps.validateComponent('spawn', { group: 'a1', count: 1, radius: 0, respawn: 30 }), []);
+  assert.ok(comps.validateComponent('spawn', { group: 'a1', respawn: 'soon' }).some((p) => p.path === 'spawn.respawn'));
+});
+
+test('an animal\'s gameplay components survive scene -> zone -> scene and win over the default npc', async () => {
+  const zk = await import('../web/zone.js');
+  const terrain = { size: 100, res: 3, heights: '', splat: '', slots: [] };
+  const comps = { npc: { mode: 'stationary', home: { x: 1, z: 2 }, radius: 4, speed: 1 }, hostile: { radius: 6, speed: 3, ability: 'strike' }, loot: { table: 'boar' } };
+  const scene = { version: 2, terrain, objects: [], effects: [], animals: [{ uid: 1, defId: 'boar', x: 1, z: 2, homeX: 1, homeZ: 2, components: comps }, { uid: 2, defId: 'deer', x: 0, z: 0, homeX: 0, homeZ: 0 }] };
+  const { zone, cells } = zk.sceneToZone(scene, { id: 't' });
+  const e = zk.mergeCells(zone, cells).find((x) => x.uid === 'a1');
+  assert.equal(e.components.npc.mode, 'stationary');
+  assert.deepEqual(e.components.hostile, comps.hostile);
+  const back = zk.zoneToScene(zone, cells).animals.sort((x, y) => x.uid - y.uid);
+  assert.deepEqual(back[0].components, comps);
+  assert.equal(back[1].components, undefined, 'a plain animal stays plain');
+});
+
 test('an entity with a bad component is reported at the component', () => {
   const e = { ...entityS.defaults(), components: { npc: { mode: 'dance' } } };
   assert.ok(entityS.validate(e).some((p) => p.path === 'components.npc.mode'));

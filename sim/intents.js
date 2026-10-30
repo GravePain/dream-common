@@ -6,8 +6,14 @@
 //   { type: 'face', yaw }                  turn on the spot (radians, 0 faces +z)
 //   { type: 'interact', uid }              use an entity in range (one-shot; movement carries on)
 //   { type: 'stop' }                       stand still
+//   { type: 'cast', ability, target?, x?, z? }  use an ability (step 10, systems/abilities.js; one-shot)
+//   { type: 'pickup', uid }                pick up a drop in reach (systems/items.js; one-shot)
+//   { type: 'use', slot }                  use the item in an inventory slot (one-shot)
+//   { type: 'drop', slot }                 put a slot's stack on the ground (one-shot)
 
-export const KINDS = ['move', 'moveTo', 'face', 'interact', 'stop'];
+export const KINDS = ['move', 'moveTo', 'face', 'interact', 'stop', 'cast', 'pickup', 'use', 'drop'];
+const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+const slotOk = (v) => Number.isInteger(v) && v >= 0 && v < 64;
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
 /** A clean copy of an intent, or null when it is malformed (the server drops those, and may kick later). */
@@ -22,9 +28,17 @@ export function check(i) {
     case 'moveTo': return finite(i.x) && finite(i.z) ? { type: 'moveTo', x: i.x, z: i.z, run: !!i.run } : null;
     case 'face': return finite(i.yaw) ? { type: 'face', yaw: i.yaw } : null;
     case 'interact': return typeof i.uid === 'string' && i.uid ? { type: 'interact', uid: i.uid } : null;
+    case 'cast': {
+      if (typeof i.ability !== 'string' || !ID.test(i.ability)) return null;
+      if (i.target !== undefined && (typeof i.target !== 'string' || !ID.test(i.target))) return null;
+      if ((i.x !== undefined || i.z !== undefined) && !(finite(i.x) && finite(i.z))) return null;
+      return { type: 'cast', ability: i.ability, ...(i.target !== undefined ? { target: i.target } : {}), ...(i.x !== undefined ? { x: i.x, z: i.z } : {}) };
+    }
+    case 'pickup': return typeof i.uid === 'string' && ID.test(i.uid) ? { type: 'pickup', uid: i.uid } : null;
+    case 'use': case 'drop': return slotOk(i.slot) ? { type: i.type, slot: i.slot } : null;
     default: return { type: 'stop' };
   }
 }
 
 /** Is this a one-shot intent (applied once) rather than a standing movement order? */
-export const oneShot = (i) => i.type === 'interact' || i.type === 'face';
+export const oneShot = (i) => i.type !== 'move' && i.type !== 'moveTo' && i.type !== 'stop';

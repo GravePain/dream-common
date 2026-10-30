@@ -13,6 +13,8 @@ own (`math.js`, plain `{ x, y, z }` objects).
 | `colliders.js` | box, sphere, capsule, cylinder from the `collider` component; `resolve` pushes a capsule out; `tooSteep`; `walkable(x, z)` |
 | `intents.js` | the intents and their check |
 | `tick.js` | `createSim`, `step` (accumulator), `stepOnce`, the seeded RNG, the intent log, `replay`, player and npc movement |
+| `systems.js` | step 10: the feature registry (`registerSystem`) and the event bus (`gate`, `done`, `fire`) |
+| `systems/*.js` | the built-in systems: `ai.js` (follow, flee, hostile), `stats.js` (pools, modifiers, death, respawn), `abilities.js` (cast), `items.js` (inventory, loot, drops, pickup, use), `tables.js` (the default tables, `checkTables`) |
 | `index.js` | all of the above and `createLocalServer(sim)` |
 | `walk.mjs` | `node sim/walk.mjs`: walks a player 20 m across Crystal Cascades and prints its path |
 
@@ -70,8 +72,41 @@ the player, turn keys and clicks into intents with `send`, and draw from snapsho
 entity's `x, y, z, yaw` into a three.js object and its `anim` into the character's mixer. For prediction
 the client will later run its own sim with the same intents and correct to the server's snapshots.
 
+## Systems (step 10)
+
+`registerSystem({ name, components, onTick, onIntent, onJoin, init, before, after })` adds a plugin to the
+registry; every sim binds the registered systems in order (ai, stats, abilities, items; `createSim({
+systems: [...names] })` for fewer, `[]` for none). Each tick, after the players and the sim's own npcs move,
+each system's `onTick` runs in that order. An intent movement does not take (`cast`, `pickup`, `use`,
+`drop`) goes to the systems' `onIntent` until one takes it. Named events go through the bus: `before`
+hooks may veto (return false) or amend (change the event in place), `after` hooks run once it happened,
+then the listeners hear it. `interact`, `damage`, `pickup`, `death` and `drop` go through it.
+
+`createSim({ tables, spawn })`: the gameplay tables (`docs/tables.md`; built-in copies when not given)
+and the player respawn point (the bridge's `spawn`).
+
+- **Stats** (`stats` component on npcs, always on players; defaults in `MOVE`: 100 health, 100 stamina,
+  walk speed): stamina drains on a run (6 s) and refills (3 s), empty means tired (no running until 30 %);
+  health regenerates 1/s after 5 s without combat; modifiers lapse after their duration. At 0 health
+  `death`: the order drops, `anim: 'death'` for 3 s, then a player `respawn`s at the spawn with full stats and
+  an npc is removed (`despawn`) and back after its `spawn.respawn` seconds (`spawned`, same uid).
+- **Abilities** (`cast { ability, target?, x?, z? }`): exists and allowed, alive, cooldown, stamina, then
+  the target in range (+ `TOLERANCE` 0.75 m, from the target's capsule) and arc; `castResult` to the
+  caster, `cast` for everyone's pose and fx, the hit as `damage` then the effects. A projectile hits after
+  distance / speed.
+- **Npcs**: `follow` and `flee` modes move now; a `hostile { radius, speed, ability }` npc aggros the
+  nearest living player within radius (`aggro`), chases, faces and casts with the same checks, and goes
+  home (healing full, `home`) once its target is 2x radius from home.
+- **Items**: players carry `inventory { size, slots }` (12; a join may bring a saved one); `pickup { uid }`
+  within 2 m, `use { slot }`, `drop { slot }`; `loot { table }` rolls on death and when opened (re-armed
+  after its `spawn.respawn` s, else 60); drops are entities with `model` and `pickup`, gone after 120 s.
+  Events: `inventory`, `itemResult`, `drop`, `despawn`, `use`.
+
+All chance is `sim.random`, all order is uid order: `test/systems.test.mjs` replays casts, a hostile, loot
+and pickups bit for bit, and the older replay in `sim.test.mjs` runs with every system on.
+
 ## Not here yet
 
 Water (a player walks the sea floor; `waterLevel` is read, not used), standing on colliders, jumping,
-follow and flee, players blocking each other, mesh colliders, deltas instead of whole snapshots, and
+players blocking each other, mesh colliders, deltas instead of whole snapshots, and
 templates on disk (none exist; `createWorld` takes them as data).

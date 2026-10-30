@@ -73,6 +73,10 @@ the user's own K:\dev-hafen-server.
   then crafting/gathering (port ideas from hafen-server), quests/dialogue.
 - Feature registry + event bus with before/after hooks so systems are plugins.
 - GM/admin page on the server (online players, teleport, spawn, reload).
+- **Step 10 built (2026-10-30):** the registry and bus (`sim/systems.js`), stats with death and respawn,
+  `strike` and `bolt` from `Tables/abilities.json`, follow / flee / hostile npcs, items, inventory, loot and
+  pickups (`docs/tables.md`), the GM page (`dream-server` `/gm`), and in Dream World the bars, ability bar,
+  target ring, damage numbers, inventory and death. Crafting, quests and dialogue are still to come.
 
 ## Phase 5: scale and test
 - Headless bot clients (like hafen-server's playbridge) for load and regression tests.

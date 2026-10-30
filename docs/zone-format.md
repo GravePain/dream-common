@@ -64,6 +64,16 @@ the cell its `transform.x, z` falls in: `cellOf(x, z, size)` in `web/zone.js`.
 | `light` | `color`, `intensity`, `range` |
 | `fx` | `type` (a Dream World built-in or `library`), `path` (`place\|path` of a library effect), `radius` |
 | `animal` | `defId`, `home {x, z}` (Dream World's AnimalSave) |
+| `stats` | `health`, `maxHealth`, `stamina`, `maxStamina`, `speed` (step 10; missing fields take `MOVE`'s defaults) |
+| `inventory` | `size`, `slots [{item, count}]` |
+| `pickup` | `item`, `count` (a drop on the ground) |
+| `hostile` | `radius` (aggro), `speed` (chase), `ability` (an ability id, `strike`) |
+
+`spawn` gained `respawn` (s): an npc carrying it (or a spawn entity whose `group` is the npc's uid) comes
+back that long after it died; on a chest with `loot` it is how long before the chest gives loot again.
+An animal's AnimalSave may carry `components` (npc, hostile, stats, loot, spawn): they win over the default
+wandering npc and come back into the scene, so Dream World keeps a hostile npc through open and save.
+Tables (abilities, items, loot) are not components: `docs/tables.md`.
 
 **Player spawn.** An entity with `spawn` of group `player` (Dream World: Play settings, *Set spawn here*,
 makes a group carrying one) is where new players start: the Dream Server puts each at a random walkable
