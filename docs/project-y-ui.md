@@ -7,7 +7,7 @@ pieces the way they would go into Unity. Brief: `docs/briefs/project-y-ui-sprite
 from the artboards' layout and colours (Graves's own design). Nothing is read from
 `K:\Unity-Projects\*`, no bought pack (PixelArtGUI, Fantasy Icons Mega Pack) is copied, traced or
 referenced, and none of the artboards' embedded images are used. Each sprite's and piece's meta carries
-`made: dream-paint` and `generator: dream-paint/project-y.js`.
+`made: dream-paint` and `generator: dream-paint/project-y.js`. This set was made under the old CC0-or-own rule; since 2026-10-31 bought packs may be used too (see Assets in `CLAUDE.md`).
 
 ## Making it again
 
