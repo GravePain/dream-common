@@ -67,6 +67,16 @@ The Dream Server has the same rule for publishing, promoting and the GM page, pl
    - `wmic process call create` looks like it worked and then the node exits: do not use it.
 6. Verify on Morty by `curl`: the page answers `200` and serves the change. A green dot on the portal is not proof (see below).
 
+## A throwaway Dream Server on Morty
+
+For anything that would otherwise touch the real server's saves or fill its room, such as a load run. Its own port, saves and packs, and removed afterwards:
+
+```
+timeout 6 ssh morty 'cd /d D:\Public\dream-server && set "PORT=5321" && set "CONTENT=live" && set "AUTH=off" && set "MAX_PLAYERS=500" && set "PER_ADDRESS=500" && set "SAVE_DIR=%TEMP%\dream-check\saves" && set "PACKS_DIR=%TEMP%\dream-check\packs" && node server.mjs'
+```
+
+Then find its PID (`netstat` as above, `:5321`), `taskkill /F /PID`, and `rmdir /s /q "%TEMP%\dream-check"`. They share a machine, so run load only while nobody is playing on the real one. To watch a crowd on the real server, use its Bots page (`/bots`) instead: bots there need no accounts and save nothing.
+
 ## Things that have gone wrong
 
 - **Half-applied pull on a Morty clone** (index.html deleted, other files half new): the page answers 404 while the process is still running. Check `git -C /z/<repo> -c safe.directory='*' status` on Morty after a pull. Fixing it needs `git restore .` there, which the safety check blocks until the user says yes in chat. Seen 2026-10-31 on `dream-library`: the running Library held `public/index.html` open, so the pull could not replace it ("File exists"); stopping the server released it. When a pull replaces a page, stop that server first.

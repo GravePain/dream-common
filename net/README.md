@@ -107,3 +107,5 @@ player's fields and calls `world.place`.
   before `hello` other than `ping`, a second `hello`, more than 4 KB) gets `error { reason }` and the
   socket is closed with code 1008 and the reason.
 - `parseClient(raw)` returns `{ msg }` (a clean copy) or `{ error }`; `encode(t, body)` makes a frame.
+
+**Bots.** A `hello`'s `token` may be a bot token, kind `bot`, which only the server's Bots page makes: `name` must be `Bot-<n>` and `character` the one signed. The same token in the socket's `x-dream-bot` header passes the sockets-per-address limit. Other event types a client hears: `moved { uid, x, z }` (a GM's teleport; prediction starts again there), `tables` (a promote changed the live tables).

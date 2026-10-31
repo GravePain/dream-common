@@ -73,6 +73,9 @@ the user's own K:\dev-hafen-server.
   then crafting/gathering (port ideas from hafen-server), quests/dialogue.
 - Feature registry + event bus with before/after hooks so systems are plugins.
 - GM/admin page on the server (online players, teleport, spawn, reload).
+- **Bots done (2026-10-31, `docs/briefs/dream-bots.md`):** bots that fight, loot, wear gear and walk portals over the real socket;
+  a scenario test of the whole game on the real server; replays from real rooms; load figures with a crowd that fights (8.73 ms at 200
+  on Morty, the bar met; `dream-server/README.md`); and a Bots page (`/bots`) that starts a crowd with no accounts or saves and runs the checks.
 - **Publish + GM done (2026-10-31, `docs/briefs/publish-and-gm.md`):** a live zone plays with the Library stopped (tables, npc
   models, effects, ground and UI all in the pack, `docs/pack-format.md`), publish fails on a broken reference and lists the places
   and licences it draws from, promoting an older build goes back, old builds clean up, and the GM page gained kick, ban, give and
@@ -158,8 +161,8 @@ is completed before Dream Server, and each tool's runtime half moves to `dream-c
 
 ## Testing layers (agent-friendly, cheapest first)
 1. Sim tests: `sim/` runs headless in Node (spawn, walk, hit, assert).
-2. Bot clients: Node scripts over the real protocol acting on state; many at once = load test.
-3. Replays: seed + inputs re-simulated after changes as regression tests (as in Skyfall Blade).
+2. Bot clients: Node scripts over the real protocol acting on state; many at once = load test. Built: `dream-server/bots/`, `test/bots.test.mjs`, the Bots page.
+3. Replays: seed + inputs re-simulated after changes as regression tests (as in Skyfall Blade). Built: `sim/recording.js`, `dream-server/test/replays/`.
 4. Browser + screenshots (like Skyfall Blade's devsnap) only for visual checks.
 
 ## Modules
@@ -180,7 +183,7 @@ push), Dream GM (VPN only), Dream Bots (test/load bots, replay regressions). Dre
 game, built from `client/` + `sim/`, the same runtime as Play mode.
 
 Build order: Dream Sound and the Paint UI templates (finish the base tools), schemas + sim, Play button,
-Dream Server, Codex, Publish + GM, Bots, then Story and Motion. Next: Bots, `docs/briefs/dream-bots.md`.
+Dream Server, Codex, Publish + GM, Bots, then Story and Motion. Next: Story.
 
 ## Ideas from SpacetimeDB, FOnline, AzerothCore (ideas only; BSL / MIT / GPL-2.0)
 1. Entity properties declared once with **save and sync flags** (saved, server-only, owner-only, public).

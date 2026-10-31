@@ -12,6 +12,7 @@ own (`math.js`, plain `{ x, y, z }` objects).
 | `world.js` | `createWorld({ zone, cells, templates })`: entities by uid with components resolved over their template, a spatial hash by 50 m cell, `near(x, z, r)`, `addEntity`, `removeEntity`, `get` |
 | `colliders.js` | box, sphere, capsule, cylinder from the `collider` component; `resolve` pushes a capsule out; `tooSteep`; `walkable(x, z)` |
 | `intents.js` | the intents and their check |
+| `recording.js` | what a room did, to run again: digests of every mover, `verifyRecording` (names the first tick and entity that differ), `rechecked`, the file form. Used by `dream-server` |
 | `tick.js` | `createSim`, `step` (accumulator), `stepOnce`, the seeded RNG, the intent log, `replay`, player and npc movement |
 | `systems.js` | step 10: the feature registry (`registerSystem`) and the event bus (`gate`, `done`, `fire`) |
 | `systems/*.js` | the built-in systems: `ai.js` (follow, flee, hostile), `stats.js` (pools, modifiers, death, respawn), `abilities.js` (cast), `items.js` (inventory, equipment, loot, drops, pickup, use), `tables.js` (the default tables, `checkTables`, `readTables`; no imports, so the Codex page runs it too) |

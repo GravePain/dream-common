@@ -1,5 +1,7 @@
 # Brief: Dream Bots, bots that play the game
 
+**Built 2026-10-31.** Kept as written, with one change Graves asked for: a Bots page (decision 2 said none). So a crowd can run on his real server without breaking decision 5, its bots carry a signed token instead of accounts and save nothing. `dream-server/README.md` says what is true now, with the figures.
+
 The next stage of `docs/game-builder-plan.md` (build order: Dream Server, Codex, Publish + GM, **Bots**, then Story
 and Motion). Written 2026-10-31 from the code as it stands. Testing layers 2 and 3 of the plan: bot clients over the real
 protocol, and replays as regression tests.
