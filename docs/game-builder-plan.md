@@ -73,6 +73,10 @@ the user's own K:\dev-hafen-server.
   then crafting/gathering (port ideas from hafen-server), quests/dialogue.
 - Feature registry + event bus with before/after hooks so systems are plugins.
 - GM/admin page on the server (online players, teleport, spawn, reload).
+- **Publish + GM done (2026-10-31, `docs/briefs/publish-and-gm.md`):** a live zone plays with the Library stopped (tables, npc
+  models, effects, ground and UI all in the pack, `docs/pack-format.md`), publish fails on a broken reference and lists the places
+  and licences it draws from, promoting an older build goes back, old builds clean up, and the GM page gained kick, ban, give and
+  take items, restore health and reset a zone's doors and chests. Still to come with the VPS: characters in packs, baking, signing.
 - **Step 10 built (2026-10-30):** the registry and bus (`sim/systems.js`), stats with death and respawn,
   `strike` and `bolt` from `Tables/abilities.json`, follow / flee / hostile npcs, items, inventory, loot and
   pickups (`docs/tables.md`), the GM page (`dream-server` `/gm`), and in Dream World the bars, ability bar,
@@ -110,9 +114,8 @@ is completed before Dream Server, and each tool's runtime half moves to `dream-c
 - **Dream Forge:** collider proxies (box, capsule, cylinder) per piece in the template; mesh colliders
   from `.mesh.json` only later.
   Done 2026-10-29: auto-fit on save, the Colliders panel in Edit, `meta.colliders` + GLB root `extras.colliders` (`{ shape, size, trigger, x, y, z, rotY }`), `kit.collider` for Blender pieces.
-- **Dream Library:** a `licence` field per place; publish refuses assets from places not cleared for the
-  public client (`K:\non-cc0-packs` exists beside `cc0-packs`). Publish also resolves every reference
-  (piece paths, template ids, effect and sound names) and fails on a miss, not only the shape check.
+- **Dream Library:** a `licence` note per place, and publish lists them and refuses only a place marked `noPublic`. Publish
+  resolves every reference (piece paths, template ids, effects) and fails on a miss, not only the shape check. Done 2026-10-31.
 
 ## Services (separable; one Node process at first, split later)
 | service | job | exposure |
@@ -177,7 +180,7 @@ push), Dream GM (VPN only), Dream Bots (test/load bots, replay regressions). Dre
 game, built from `client/` + `sim/`, the same runtime as Play mode.
 
 Build order: Dream Sound and the Paint UI templates (finish the base tools), schemas + sim, Play button,
-Dream Server, Codex, Publish + GM, Bots, then Story and Motion. Next: Publish + GM, `docs/briefs/publish-and-gm.md`.
+Dream Server, Codex, Publish + GM, Bots, then Story and Motion. Next: Bots.
 
 ## Ideas from SpacetimeDB, FOnline, AzerothCore (ideas only; BSL / MIT / GPL-2.0)
 1. Entity properties declared once with **save and sync flags** (saved, server-only, owner-only, public).

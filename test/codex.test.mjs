@@ -168,7 +168,7 @@ test('what cannot be worn or taken off says why', () => {
 
 test('what is worn comes back with a saved inventory and stays on through a death', () => {
   const { sim, p } = joined({ size: 2, slots: [], worn: { Cape: 'cloak', Head: 'cloak', Boots: 'gone' } });
-  assert.deepEqual(p.inventory.worn, { Cape: 'cloak' }, 'an item worn in the wrong slot, or no longer there, is dropped');
+  assert.deepEqual(p.inventory.worn, { Cape: 'cloak', Boots: 'gone' }, 'an item worn in the wrong slot is dropped; one no longer in the tables stays, doing nothing');
   assert.equal(stat(p, 'speed'), 8);
   sim.intent('p1', { type: 'stop' });
   p.stats.health = 1;

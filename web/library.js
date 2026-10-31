@@ -152,6 +152,20 @@ export function createLibrary({ onOpenEffect = null, onOpenScene = null, onOpenZ
       b.innerHTML = `<span>${p.save ? '★ ' : ''}${esc(p.name)}${p.readonly ? ' 🔒' : ''}</span>`;
       b.title = p.path + (p.save ? '\nSaves go here' : '') + (p.readonly ? '\nRead only' : '') + (p.exists ? '' : '\n(not created yet)');
       b.onclick = () => { st.place = p.id; st.tags.clear(); renderPlaces(); loadItems(); };
+      // what the publish report says of this place, and whether a public pack may draw from it
+      const l = document.createElement('i');
+      l.textContent = '§';
+      l.title = `Licence: ${p.licence || 'nothing noted'}${p.noPublic ? '\nNot for the public game: publish refuses it' : ''}`;
+      if (p.noPublic) l.style.color = '#ff9a9a';
+      l.onclick = async (e) => {
+        e.stopPropagation();
+        const licence = prompt(`Licence note for "${p.name}", shown in the publish report:`, p.licence ?? '');
+        if (licence === null) return;
+        const noPublic = confirm(`Keep "${p.name}" out of the public game? OK: publish refuses a pack that draws from it. Cancel: it may be used.`);
+        await json(`/api/place-licence?place=${encodeURIComponent(p.slug)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ licence, noPublic }) });
+        loadPlaces();
+      };
+      b.append(l);
       if (!p.save) {
         const x = document.createElement('i');
         x.textContent = '×';

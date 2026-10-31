@@ -13,8 +13,8 @@
 // The one AudioContext is made on the first click or key press (browsers keep audio silent until then);
 // anything played before that waits for it.
 
-const BASE = `${location.origin}/dl`;
-export const fileUrl = (place, p) => `${BASE}/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(p)}`;
+import { fileUrl } from './resolve.js';
+export { fileUrl };
 
 // ---------- the context ----------
 let ctx = null;

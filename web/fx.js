@@ -17,6 +17,7 @@
 // works the same in Dream Effects (plain modules) and Dream World (Vite):
 //   const fx = createEffect(THREE, def);  scene.add(fx.root);  each frame: fx.update(dt);
 //   once:  const h = fx.play({ at, follow });  h.done.then(...);  h.stop();
+import { fileUrl } from './resolve.js';
 
 const SPRITES = ['soft', 'spark', 'smoke', 'drop', 'leaf', 'star', 'ring'];
 // a Library texture as the shape, and its frames when it is a sheet; 'texture' and 'grid' are editor types
@@ -266,7 +267,7 @@ export function loadTexture(THREE, ref) {
   if (spriteCache.has(ref)) return spriteCache.get(ref);
   const [place, path] = ref.split('|');
   let t;
-  const wait = new Promise((done) => { t = new THREE.TextureLoader().load(`${location.origin}/dl/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(path)}`, done, undefined, done); });
+  const wait = new Promise((done) => { t = new THREE.TextureLoader().load(fileUrl(place, path), done, undefined, done); });
   loading.add(wait);
   wait.then(() => loading.delete(wait));
   t.colorSpace = THREE.NoColorSpace; // read as stored: its brightness is the alpha the artist drew

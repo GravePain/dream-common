@@ -1,5 +1,7 @@
 # Brief: Publish + GM, a live zone that stands on its own
 
+**Built 2026-10-31.** Kept as written; `docs/pack-format.md` and the Dream Server README say what is true now.
+
 The next stage of `docs/game-builder-plan.md` (build order: Dream Server, Codex, **Publish + GM**, Bots, then Story
 and Motion). Written 2026-10-31 from the code and from Morty as it stands.
 

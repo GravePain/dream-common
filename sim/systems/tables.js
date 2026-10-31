@@ -114,8 +114,9 @@ export function tableReader(base, fetchImpl = globalThis.fetch) {
 /**
  * Read every table and template through `library` ({ table(path), tableList(prefix) }; the Dream Server's, Play's
  * and the Codex's own); {} when there are none or they fail the check, said once through `log`. Never throws.
+ * `raw` hands back what was read even when it fails: publish checks it and names each bad record.
  */
-export async function readTables(library, log = () => {}) {
+export async function readTables(library, log = () => {}, { raw = false } = {}) {
   if (!library?.table) return {};
   const t = {};
   const one = async (path) => { try { return await library.table(path); } catch { return null; } };
@@ -132,6 +133,7 @@ export async function readTables(library, log = () => {}) {
   if (loot.length || t.abilities || t.items) t.loot = loot;
   if (shops.length) t.shops = shops;
   if (templates.length) t.templates = templates;
+  if (raw) return t;
   const bad = checkTables(t);
   if (bad.length) { log(`Tables: ${bad.join('; ')} (the built-in tables are used instead)`); return {}; }
   return t;

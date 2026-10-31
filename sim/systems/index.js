@@ -14,5 +14,5 @@ export { REGISTRY };
 export { stat, damage, kill, applyModifier, freshStats } from './stats.js';
 export { cast, inReach, foes, TOLERANCE } from './abilities.js';
 export { aiOwns } from './ai.js';
-export { addItem, rollLoot, spawnDrop, cleanInventory, SLOTS, PICKUP, DROP_LIFE } from './items.js';
+export { addItem, giveItem, takeItem, rollLoot, spawnDrop, cleanInventory, SLOTS, PICKUP, DROP_LIFE } from './items.js';
 export { DEFAULT_TABLES, STATS, WORN_STATS, EQUIP_SLOTS, EQUIP_SETS, checkTables, tablesOf, readTables, tableReader } from './tables.js';

@@ -19,6 +19,10 @@ Tables/shops/<id>.json     { format: "dream-table", version: 1, kind: "shop", id
 | loot | `id` (what a `loot { table }` component names), `rolls` (picks per roll), `entries: [{ item, weight, min, max }]` (one weighted pick per roll; `item: ""` is nothing) |
 | shop | `id`, `name`, `currency` (an item id), `entries: [{ item, price, stock? }]`. Authored and checked, **not playable yet**: buying is its own later job |
 
+**How they reach the game.** Under `CONTENT=library` a room reads these files when it opens or on the GM page's Reload. On
+`CONTENT=live` a room never asks the Library: Publish zone carries the whole set in the pack, and the last pack promoted sets
+the tables for every zone (`docs/pack-format.md`). An item a promote takes out stays with whoever holds it, doing nothing.
+
 `MODIFIER` is the schema's `{ stat, op: add | mul | set, value, duration? }` (`web/schema/components.js`).
 A stat's value is its base plus the adds, times the muls, then the last set. With a `duration` (s) it
 lapses; on `health` or `stamina` without one it changes the pool at once (a potion's `health add 40`).

@@ -9,8 +9,7 @@
 //
 // Everything is drawn pixel-crisp (image-rendering: pixelated); use whole-number scales.
 
-const BASE = `${location.origin}/dl`;
-const fileUrl = (place, p) => `${BASE}/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(p)}`;
+import { fileUrl } from './resolve.js';
 
 const loadImage = (src) => new Promise((ok, fail) => {
   const im = new Image();

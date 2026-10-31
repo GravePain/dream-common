@@ -47,7 +47,7 @@ An agent cannot create a GitHub repo (the permission classifier refuses it); ask
 
 ## Assets
 
-Since 2026-10-31 the series may use anything the owner is entitled to, including packs he paid for. The per-place `licence` field and publish check are planned in `docs/game-builder-plan.md`.
+Since 2026-10-31 the series may use anything the owner is entitled to, including packs he paid for. Publish zone lists the places a pack draws from with their licence notes, and refuses only a place marked `noPublic` (`docs/pack-format.md`).
 
 ## Documents that belong here
 
@@ -58,7 +58,7 @@ Reviews, architecture notes and plans for the series go in `docs/` here, not in 
 What every tool shares, so a fix is made once:
 
 - `serve.mjs`: the static server. A tool's `server.mjs` is three lines on top of it.
-- `web/`: the browser kit, served as `/common/` by every Dream server (the Library serves it too, and Dream World proxies it). `library.js` (the docked library panel and `fileUrl`), `brushes.js` (brush tips and samplers), `palettes.js` (palettes by colour role), `fx.js` (effect schema, presets, runtime), `library.css`.
+- `web/`: the browser kit, served as `/common/` by every Dream server (the Library serves it too, and Dream World proxies it). `library.js` (the docked library panel and `fileUrl`), `resolve.js` (the one way a game page fetches a Library file, from a live pack while one is played), `brushes.js` (brush tips and samplers), `palettes.js` (palettes by colour role), `fx.js` (effect schema, presets, runtime), `library.css`.
 - `docs/`: series-wide notes, plans and reviews. Build order (Oct 2026): fix and improve the existing tools (`review-ui-plan-2026-10-29.md`, slot 1), then the Paint game UI templates, then Dream Sound, then the editor rebuilds (`game-builder-plan.md`).
 
 Rules of thumb when working here:

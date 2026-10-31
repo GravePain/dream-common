@@ -53,6 +53,8 @@ Everyone on the LAN can browse and read. Only the Library machine itself and the
 
 The Library's files (`dream-forge-creations`, a library place, not a git repo) exist on both machines; `start-all.bat` robocopies the newer files each way before it starts the Library, deleting nothing.
 
+The Dream Server has the same rule for publishing, promoting and the GM page, plus an account flagged admin (`node tools/admin.mjs "Name"`, in `dream-server`): `DREAM_ADMIN` comes from `start-all.bat` or `config.json`, which both say `192.168.1.0/24`. It stays on `CONTENT=library` on both machines, so unpublished zones keep playing; to play from live packs, start it with `set "CONTENT=live"`.
+
 ## Getting a change onto Morty
 
 1. Edit and test on the PC (`node server.mjs` in the tool's folder; stop any server you started yourself when done).

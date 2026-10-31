@@ -10,6 +10,8 @@
 // - Equipment: an item with `equip { slot, set, worn }` goes on with `equip { slot }` (or `use`), one of its stack,
 //   into `inventory.worn { <slot name>: item id }`, swapping what was there; `worn` holds as modifiers until
 //   `unequip { wear }` puts it back in the bag. It stays on through a death and is saved with the inventory.
+// - An item the tables no longer have (a promote took it out) stays where it is, doing nothing: it can be dropped
+//   or taken off, not used, and it means something again if a later promote brings the record back.
 // - Loot: an entity with `loot { table }` rolls its table when it dies (`death`) and when it is opened or used
 //   (`interact`, then again only after its `spawn.respawn` seconds, else 60); each roll is one weighted pick
 //   with the sim's `random`. Drops are entities with `model` and `pickup`; they go after DROP_LIFE s.
@@ -23,21 +25,21 @@ const REARM = 60;              // s before a chest gives loot again
 
 const refOf = (model) => { const s = String(model ?? ''), i = s.indexOf('|'); return i > 0 ? { place: s.slice(0, i), path: s.slice(i + 1) } : null; };
 
-/** A clean inventory: `size` slots, each { item, count } or null; unknown items and bad counts dropped. */
+/** A clean inventory: `size` slots, each { item, count } or null; bad counts dropped, an item no longer in the tables kept. */
 export function cleanInventory(inv, items) {
   const size = Number.isInteger(inv?.size) && inv.size > 0 && inv.size <= 64 ? inv.size : SLOTS;
   const slots = Array.from({ length: size }, (_, k) => {
     const s = inv?.slots?.[k], def = s && items.get(s.item);
-    return def && Number.isInteger(s.count) && s.count > 0 ? { item: s.item, count: Math.min(s.count, def.stack) } : null;
+    return s && typeof s.item === 'string' && s.item && Number.isInteger(s.count) && s.count > 0 ? { item: s.item, count: def ? Math.min(s.count, def.stack) : s.count } : null;
   });
-  const worn = Object.fromEntries(Object.entries(inv?.worn ?? {}).filter(([k, id]) => items.get(id)?.equip?.slot === k));
+  const worn = Object.fromEntries(Object.entries(inv?.worn ?? {}).filter(([k, id]) => typeof id === 'string' && (!items.has(id) || items.get(id).equip?.slot === k)));
   return { size, slots, worn };
 }
 
 /** Put on or take off what an item holds while worn. */
-function wearMods(e, def, on) {
-  e.mods = e.mods?.filter((m) => m.worn !== def.equip.slot) ?? [];
-  if (on) for (const m of def.equip.worn ?? []) e.mods.push({ stat: m.stat, op: m.op, value: m.value, until: Infinity, worn: def.equip.slot });
+function wearMods(e, wear, def, on) {
+  e.mods = e.mods?.filter((m) => m.worn !== wear) ?? [];
+  if (on) for (const m of def?.equip?.worn ?? []) e.mods.push({ stat: m.stat, op: m.op, value: m.value, until: Infinity, worn: wear });
 }
 
 /** Wear the item in bag slot `k`, swapping what its equipment slot holds. A reason when it cannot, else null. */
@@ -53,14 +55,15 @@ function equip(sim, e, k) {
     return 'full';
   }
   e.inventory.worn[wear] = s.item;
-  wearMods(e, def, true);
+  wearMods(e, wear, def, true);
   return null;
 }
 
 /** Put `count` of `item` in: stacks first, then empty slots. All or nothing; true when it fitted. */
 export function addItem(inv, items, item, count) {
-  const def = items.get(item);
-  if (!def || count < 1) return false;
+  // an item no longer in the tables goes in a slot of its own
+  const def = items.get(item) ?? { stack: 1 };
+  if (count < 1) return false;
   let room = 0;
   for (const s of inv.slots) room += !s ? def.stack : s.item === item ? def.stack - s.count : 0;
   if (room < count) return false;
@@ -101,6 +104,26 @@ function dropLoot(sim, e) {
   }
 }
 
+/** The GM's hand: give `count` of an item in the tables; false when it is not one or the bag has no room. */
+export function giveItem(sim, e, item, count) {
+  if (!sim.tables.items.has(item) || !addItem(e.inventory, sim.tables.items, item, count)) return false;
+  told(sim, e);
+  return true;
+}
+
+/** The GM's hand: take up to `count` of an item from the bag; how many went. */
+export function takeItem(sim, e, item, count) {
+  let left = count;
+  e.inventory.slots.forEach((s, k) => {
+    if (!s || s.item !== item || !left) return;
+    const n = Math.min(left, s.count);
+    s.count -= n; left -= n;
+    if (!s.count) e.inventory.slots[k] = null;
+  });
+  if (left < count) told(sim, e);
+  return count - left;
+}
+
 const told = (sim, e) => sim.emit('inventory', { tick: sim.tick, uid: e.uid, size: e.inventory.size, slots: e.inventory.slots.map((s) => (s ? { ...s } : null)), worn: { ...e.inventory.worn } });
 const result = (sim, e, action, ok, reason, more = {}) => sim.emit('itemResult', { tick: sim.tick, uid: e.uid, action, ok, reason, ...more });
 
@@ -119,7 +142,7 @@ export const itemsSystem = {
   onJoin(sim, e, join) {
     if (e.kind !== 'player') return;
     e.inventory = cleanInventory(join?.inventory, sim.tables.items);
-    for (const id of Object.values(e.inventory.worn)) wearMods(e, sim.tables.items.get(id), true);
+    for (const [wear, id] of Object.entries(e.inventory.worn)) wearMods(e, wear, sim.tables.items.get(id), true);
     told(sim, e);
   },
   onTick(sim) {
@@ -146,7 +169,7 @@ export const itemsSystem = {
       if (e.dead) { result(sim, e, 'unequip', false, 'dead', { wear: i.wear }); return true; }
       if (!addItem(e.inventory, sim.tables.items, id, 1)) { result(sim, e, 'unequip', false, 'full', { wear: i.wear }); return true; }
       delete e.inventory.worn[i.wear];
-      wearMods(e, sim.tables.items.get(id), false);
+      wearMods(e, i.wear, sim.tables.items.get(id), false);
       result(sim, e, 'unequip', true, null, { wear: i.wear, item: id });
       told(sim, e);
       return true;
@@ -163,6 +186,7 @@ export const itemsSystem = {
         told(sim, e);
         return true;
       }
+      if (i.type === 'use' && !def) { result(sim, e, 'use', false, 'no longer exists', { slot: i.slot }); return true; }
       if (i.type === 'use') {
         for (const m of def?.effects ?? []) applyModifier(sim, e, m);
         sim.emit('use', { tick: sim.tick, uid: e.uid, item: s.item, x: e.x, z: e.z });

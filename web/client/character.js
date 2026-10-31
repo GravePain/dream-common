@@ -10,7 +10,7 @@
 //   ch.setState('walk', 4);             // idle | walk | run, with the ground speed in m/s
 //   each frame: ch.update(dt);
 
-const fileUrl = (place, path) => `${location.origin}/dl/api/file?place=${encodeURIComponent(place)}&path=${encodeURIComponent(path)}`;
+import { fileUrl } from '../resolve.js';
 
 /** The clip to stand about in, and the one to get about with, whatever the pack calls them. */
 export const idleClip = (clips) => clips.find((a) => /(^|_)idle$/i.test(a.name)) ?? clips.find((a) => /idle/i.test(a.name) && /loop/i.test(a.name) && !/zombie|shield|rail|phone|ninja/i.test(a.name)) ?? clips.find((a) => /idle/i.test(a.name));
