@@ -177,7 +177,7 @@ push), Dream GM (VPN only), Dream Bots (test/load bots, replay regressions). Dre
 game, built from `client/` + `sim/`, the same runtime as Play mode.
 
 Build order: Dream Sound and the Paint UI templates (finish the base tools), schemas + sim, Play button,
-Dream Server, Codex, Publish + GM, Bots, then Story and Motion.
+Dream Server, Codex, Publish + GM, Bots, then Story and Motion. Next: Publish + GM, `docs/briefs/publish-and-gm.md`.
 
 ## Ideas from SpacetimeDB, FOnline, AzerothCore (ideas only; BSL / MIT / GPL-2.0)
 1. Entity properties declared once with **save and sync flags** (saved, server-only, owner-only, public).
