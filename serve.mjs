@@ -9,6 +9,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// started over SSH, the output pipe is gone once the session ends: a log line must not kill the server
+for (const s of [process.stdout, process.stderr]) s.on('error', () => {});
+
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.glb': 'model/gltf-binary', '.md': 'text/markdown; charset=utf-8', '.wasm': 'application/wasm' };
 
 const LIBRARY = new URL(process.env.DREAM_LIBRARY || 'http://127.0.0.1:5230');
