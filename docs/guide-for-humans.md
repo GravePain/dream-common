@@ -185,7 +185,7 @@ Closing that window stops the server. A hard stop can lose up to the last second
 | Everything saved in the tools | `D:\Public\dream-forge-creations` |
 | The server's secret | `D:\Public\dream-server\secret.txt`. Keep it private. Changing it signs everyone out |
 
-**Backups:** nothing backs up accounts, saves or builds automatically, and they are not in git. Until that changes, stop the Dream Server and copy `saves` and `packs` somewhere safe. The Library's files keep older versions of what is saved, and `start-all` keeps a copy on the PC.
+**Backups:** nothing backs up accounts, saves or builds automatically, and they are not in git. Until that changes, stop the Dream Server and copy `saves` and `packs` somewhere safe. The Library keeps older versions of what is saved, and `start-all`, when run on the PC, copies its files there too.
 
 ## Not there yet
 
