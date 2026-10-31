@@ -112,6 +112,8 @@ async function reach({ zone, list, templates, tables, ref, file, known, hashes, 
     const r = id ? refOfItem(id) : null;
     if (r && !(await add(r))) warnings.push({ record: `zone ${zone.id}`, path: 'terrain.slots', message: `the ground texture ${r} could not be read: that layer draws blank` });
   }
+  const skybox = zone.sky?.skybox;
+  if (skybox && !(await add(skybox))) warnings.push({ record: `zone ${zone.id}`, path: 'sky.skybox', message: `the skybox ${skybox} could not be read: the drawn sky shows instead` });
   for (const p of PLAY_FILES) {
     const bytes = await add(`0|${p}`);
     if (!bytes) { warnings.push({ record: 'Play', path: p, message: 'could not be read: Play draws a plain stand-in' }); continue; }

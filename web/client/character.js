@@ -13,7 +13,7 @@
 import { fileUrl } from '../resolve.js';
 
 /** The clip to stand about in, and the one to get about with, whatever the pack calls them. */
-export const idleClip = (clips) => clips.find((a) => /(^|_)idle$/i.test(a.name)) ?? clips.find((a) => /idle/i.test(a.name) && /loop/i.test(a.name) && !/zombie|shield|rail|phone|ninja/i.test(a.name)) ?? clips.find((a) => /idle/i.test(a.name));
+export const idleClip = (clips) => clips.find((a) => /(^|_)idle$/i.test(a.name)) ?? clips.find((a) => /^idle_loop$/i.test(a.name)) ?? clips.find((a) => /idle/i.test(a.name) && /loop/i.test(a.name) && !/zombie|shield|rail|phone|ninja/i.test(a.name)) ?? clips.find((a) => /idle/i.test(a.name));
 export const walkClip = (clips) => clips.find((a) => /(^|_)walk(_loop)?$/i.test(a.name)) ?? clips.find((a) => /walk/i.test(a.name) && !/zombie/i.test(a.name)) ?? clips.find((a) => /(^|_)run(_loop)?$/i.test(a.name)) ?? clips.find((a) => /walk|run/i.test(a.name));
 /** A run clip, when the pack has one (else the walk clip played faster stands in). */
 export const runClip = (clips) => clips.find((a) => /(^|_)run(_loop)?$/i.test(a.name)) ?? clips.find((a) => /(^|_)(run|jog|sprint)/i.test(a.name) && !/zombie|carry|injured/i.test(a.name));

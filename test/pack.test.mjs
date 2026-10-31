@@ -85,3 +85,15 @@ test('hashes: plain JS matches WebCrypto; changedModels lists what a reload swap
   }
   assert.deepEqual(changedModels({ hashes: { a: '1', b: '2' } }, { hashes: { a: '1', b: '3', c: '4' } }), ['b', 'c']);
 });
+
+test('a skybox travels in the pack; one that cannot be read is a warning, not an error', async () => {
+  const { zone: z } = zoneOnDisk(), zone = { ...z, cells: [] }, cells = [];
+  const sky = 'cc0-kenney-skyboxes|skybox-day.png', bytes = new Uint8Array([1, 2, 3]);
+  const file = async (r) => (r === sky ? bytes : null);
+  const yes = await buildPack({ zone: { ...zone, sky: { ...zone.sky, skybox: sky } }, cells, ref: REF, built: BUILT, pieces, file });
+  assert.ok(yes.pack.hashes[sky]);
+  assert.deepEqual(yes.assets.get(yes.pack.hashes[sky]), bytes);
+  assert.equal(yes.pack.zone.sky.skybox, sky);
+  const no = await buildPack({ zone: { ...zone, sky: { skybox: 'cc0-kenney-skyboxes|gone.png' } }, cells, ref: REF, built: BUILT, pieces, file });
+  assert.ok(no.report.warnings.some((w) => w.path === 'sky.skybox'));
+});
