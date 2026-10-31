@@ -15,7 +15,7 @@ Checked 2026-10-29 against the live machines.
 | Role | **the agent's sandbox**: develop and test here | **where the user works**: the user only uses Morty |
 | Home LAN | `192.168.1.0/24`, never the internet | same |
 
-**The rule:** an agent develops and tests on the PC, then pushes the change to Morty, and the user works only on Morty. A result that exists only on the PC is not done. After any change, check the page on `http://192.168.1.111:<port>/`, not on `localhost`.
+**The rule:** an agent develops and tests on the PC, then pushes the change to Morty, and the user works only on Morty. A result that exists only on the PC is not done. After any change, check Morty from the command line (`curl http://192.168.1.111:<port>/`, the Library API, `git`, `ssh morty`). **An agent never drives Morty's pages in a browser:** every action there pops up a permission prompt for the user that can't be permanently allowed. Test in a browser on `localhost`, pointing a local server at Morty's Library with `DREAM_LIBRARY` when the data matters, and ask the user to look when something can only be judged by eye.
 
 Not everything runs on both. Morty runs the whole set. The PC runs what an agent started for itself (usually Forge, Library, World, Effects, Characters, Sound, Server; **Paint is usually off**). So `localhost:5250` being dead is normal and means nothing.
 
@@ -63,7 +63,7 @@ The Library's files (`dream-forge-creations`, a library place, not a git repo) e
    - Find it: `ssh morty 'netstat -ano | findstr LISTENING | findstr ":52"'`, kill it: `ssh morty 'taskkill /F /PID <pid>'`.
    - Start it with a foreground command and a short timeout, **one ssh call per server**, single-quoted so Git Bash keeps the backslashes: `timeout 6 ssh morty 'cd /d D:\Public\dream-paint && node server.mjs'`. The process survives the disconnect. The Library: `... 'cd /d D:\Public\dream-library && set "DREAM_ADMIN=192.168.1.0/24" && node server.mjs'`.
    - `wmic process call create` looks like it worked and then the node exits: do not use it.
-6. Verify on Morty: the page answers `200` and shows the change. A green dot on the portal is not proof (see below).
+6. Verify on Morty by `curl`: the page answers `200` and serves the change. A green dot on the portal is not proof (see below).
 
 ## Things that have gone wrong
 
