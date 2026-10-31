@@ -37,7 +37,7 @@ node tools\admin.mjs "Name"
 
 Add `off` after the name to take it away. It works while the server runs.
 
-**Reset a password**, yours or anyone's. It asks twice and is meant to show nothing as you type:
+**Reset a password**, yours or anyone's. It asks twice and shows nothing as you type:
 
 ```
 cd /d D:\Public\dream-server
