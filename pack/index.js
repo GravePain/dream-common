@@ -40,7 +40,7 @@ const modelKey = (m) => `${m.place}|${m.path}`;
 
 /**
  * Build a pack. `zone` the zone record, `cells` its cells (a list or { name: cell }), `templates` template
- * records (none yet), `ref` the zone's Library ref ("place|path/zone.json", what clients name it by),
+ * records (their components are baked into the entities that name them, and they ride along), `ref` the zone's Library ref ("place|path/zone.json", what clients name it by),
  * `built` the build's name, `pieces(template)` resolves to { meta, glb } for a placed piece ("lib<place>/<path>":
  * its .meta.json or null, its GLB bytes or null). Nothing passed in is changed.
  */
@@ -76,7 +76,7 @@ export async function buildPack({ zone, cells, templates = [], ref, built, piece
   }
   if (errors.length) return { ok: false, report: { errors, warnings } };
 
-  const input = simInput(zone, list, { pieces: (t) => info.get(t) });
+  const input = simInput(zone, list, { pieces: (t) => info.get(t), templates });
   const outCells = input.cells.map((c) => ({ ...c, entities: [...c.entities].sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0)) })).sort((a, b) => a.x - b.x || a.z - b.z);
   const pack = {
     format: FORMAT, version: VERSION, id: zone.id, ref, built,
@@ -115,6 +115,6 @@ export function checkPack(pack) {
 }
 
 /** The sim's input from a pack: the colliders are baked, so the bridge is asked about no piece. */
-export const packInput = (pack) => simInput(pack.zone, pack.cells, { pieces: () => undefined });
+export const packInput = (pack) => simInput(pack.zone, pack.cells, { pieces: () => undefined, templates: pack.templates ?? [] });
 /** The model refs ("place|path") of a pack whose hash differs in `next` (or is new there). */
 export const changedModels = (prev, next) => Object.keys(next.hashes).filter((k) => prev?.hashes?.[k] !== next.hashes[k]);

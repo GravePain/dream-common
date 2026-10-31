@@ -39,12 +39,13 @@ const toPlaced = (e) => {
  * An animal: template = its animal id, an animal component (what AnimalSave carries) and an npc that wanders.
  * Step 10: an AnimalSave may carry `components` (its own npc, hostile, stats, loot, spawn...), which win over
  * that default npc; back in a scene an animal carries every component beside `animal` once it has any but
- * the default npc, so a hostile npc survives the editor.
+ * the default npc, so a hostile npc survives the editor. An animal placed from a template ("template:<id>",
+ * sim/bridge.js) gets no default npc: the template's is its npc, with this animal's home.
  */
 const fromAnimal = (a) => ({
   uid: `a${a.uid}`, template: a.defId,
   transform: { x: a.x, y: 0, z: a.z, rotX: 0, rotY: 0, rotZ: 0, scale: 1 },
-  components: { animal: { defId: a.defId, home: { x: a.homeX, z: a.homeZ }, ...rest(a, ANIMAL) }, npc: { mode: 'wander', home: { x: a.homeX, z: a.homeZ }, radius: 14, speed: 1 }, ...(a.components ?? {}) },
+  components: { animal: { defId: a.defId, home: { x: a.homeX, z: a.homeZ }, ...rest(a, ANIMAL) }, ...(a.defId.startsWith('template:') ? {} : { npc: { mode: 'wander', home: { x: a.homeX, z: a.homeZ }, radius: 14, speed: 1 } }), ...(a.components ?? {}) },
 });
 const toAnimal = (e) => {
   const { animal, ...others } = e.components, { defId, home, ...extra } = animal, t = e.transform;

@@ -12,7 +12,12 @@
 // - animals are `npc` wander entities already (zone.js gives every animal one); they pass through as is.
 // - the spawn point: a `spawn` component of group "player", else the zone's `spawn`, else the given point,
 //   else the zone's centre; and the entities with `interact`, which a client needs to aim E at.
+// - an entity placed from an NPC template (template "template:<id>", Dream World's Animals tool) gets its
+//   template's components under its own (`resolve()` in schema/entity.js), so sims, packs and hostile lists all
+//   see them. The template's `model` is left out: the client draws an npc from its animal def, and a pack's
+//   `model` means a placed piece with a hash.
 import { cellOf } from '../web/zone.js';
+import { resolve } from '../web/schema/entity.js';
 
 /** One shape for a piece with no saved colliders: none for small or flat things, a trunk for a tree, else a box. */
 export function fallbackShape(info) {
@@ -59,7 +64,8 @@ export const templatesOf = (cells) => [...new Set((Array.isArray(cells) ? cells 
  * plus { spawn, interactables, made }. `cells` is a list or { name: cell }; nothing passed in is changed.
  */
 export function simInput(zone, cells, opts = {}) {
-  const list = (Array.isArray(cells) ? cells : Object.values(cells)).map((c) => ({ ...c, entities: [...(c.entities ?? [])] }));
+  const templates = opts.templates ?? [];
+  const list = (Array.isArray(cells) ? cells : Object.values(cells)).map((c) => ({ ...c, entities: (c.entities ?? []).map((e) => fromTemplate(e, templates)) }));
   const all = list.flatMap((c) => c.entities);
   const made = [], extra = [];
   for (const e of all) {
@@ -94,5 +100,18 @@ export function simInput(zone, cells, opts = {}) {
     const use = e.components.interact;
     return { uid: e.uid, name: e.name ?? e.template.split('/').pop().replace(/\.glb$/i, ''), x: e.transform.x, z: e.transform.z, range: use.range ?? 2, verb: use.verb ?? 'use', fx: e.components.fx ?? null, light: !!e.components.light };
   });
-  return { zone: { ...zone, cells: outCells.map((c) => `x${c.x}z${c.z}`) }, cells: outCells, templates: [], spawn, interactables, made };
+  return { zone: { ...zone, cells: outCells.map((c) => `x${c.x}z${c.z}`) }, cells: outCells, templates, spawn, interactables, made };
+}
+
+/** What marks an entity's `template` as a template file's id rather than a library piece or an animal. */
+export const TEMPLATE_REF = 'template:';
+
+/** An entity with its template's components under its own; an entity with no such template as it is. */
+function fromTemplate(e, templates) {
+  if (!e.template?.startsWith(TEMPLATE_REF)) return e;
+  const t = templates.find((x) => x.id === e.template.slice(TEMPLATE_REF.length));
+  if (!t) return e;
+  const { model, ...components } = resolve(e, t), home = components.animal?.home;
+  if (components.npc && home) components.npc = { ...components.npc, home }; // it wanders round where it was placed
+  return { ...e, name: e.name ?? t.name, components };
 }

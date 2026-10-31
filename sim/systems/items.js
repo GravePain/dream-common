@@ -7,6 +7,9 @@
 //   it or nothing (`itemResult { ok: false, reason: 'full' }`); vetoable through the `pickup` event.
 // - `use { slot }` applies the item's effects as modifiers (stats.js) and spends one; `drop { slot }` puts the
 //   whole stack on the ground at the feet.
+// - Equipment: an item with `equip { slot, set, worn }` goes on with `equip { slot }` (or `use`), one of its stack,
+//   into `inventory.worn { <slot name>: item id }`, swapping what was there; `worn` holds as modifiers until
+//   `unequip { wear }` puts it back in the bag. It stays on through a death and is saved with the inventory.
 // - Loot: an entity with `loot { table }` rolls its table when it dies (`death`) and when it is opened or used
 //   (`interact`, then again only after its `spawn.respawn` seconds, else 60); each roll is one weighted pick
 //   with the sim's `random`. Drops are entities with `model` and `pickup`; they go after DROP_LIFE s.
@@ -27,7 +30,31 @@ export function cleanInventory(inv, items) {
     const s = inv?.slots?.[k], def = s && items.get(s.item);
     return def && Number.isInteger(s.count) && s.count > 0 ? { item: s.item, count: Math.min(s.count, def.stack) } : null;
   });
-  return { size, slots };
+  const worn = Object.fromEntries(Object.entries(inv?.worn ?? {}).filter(([k, id]) => items.get(id)?.equip?.slot === k));
+  return { size, slots, worn };
+}
+
+/** Put on or take off what an item holds while worn. */
+function wearMods(e, def, on) {
+  e.mods = e.mods?.filter((m) => m.worn !== def.equip.slot) ?? [];
+  if (on) for (const m of def.equip.worn ?? []) e.mods.push({ stat: m.stat, op: m.op, value: m.value, until: Infinity, worn: def.equip.slot });
+}
+
+/** Wear the item in bag slot `k`, swapping what its equipment slot holds. A reason when it cannot, else null. */
+function equip(sim, e, k) {
+  const s = e.inventory.slots[k], def = s && sim.tables.items.get(s.item), wear = def?.equip?.slot;
+  if (!wear) return 'not wearable';
+  const was = e.inventory.worn[wear];
+  // a swap needs room for what comes off once this one has left the bag
+  if (--s.count <= 0) e.inventory.slots[k] = null;
+  if (was && !addItem(e.inventory, sim.tables.items, was, 1)) {
+    if (!e.inventory.slots[k]) e.inventory.slots[k] = s;
+    s.count++;
+    return 'full';
+  }
+  e.inventory.worn[wear] = s.item;
+  wearMods(e, def, true);
+  return null;
 }
 
 /** Put `count` of `item` in: stacks first, then empty slots. All or nothing; true when it fitted. */
@@ -74,7 +101,7 @@ function dropLoot(sim, e) {
   }
 }
 
-const told = (sim, e) => sim.emit('inventory', { tick: sim.tick, uid: e.uid, size: e.inventory.size, slots: e.inventory.slots.map((s) => (s ? { ...s } : null)) });
+const told = (sim, e) => sim.emit('inventory', { tick: sim.tick, uid: e.uid, size: e.inventory.size, slots: e.inventory.slots.map((s) => (s ? { ...s } : null)), worn: { ...e.inventory.worn } });
 const result = (sim, e, action, ok, reason, more = {}) => sim.emit('itemResult', { tick: sim.tick, uid: e.uid, action, ok, reason, ...more });
 
 function removeDrop(sim, uid, why) {
@@ -92,6 +119,7 @@ export const itemsSystem = {
   onJoin(sim, e, join) {
     if (e.kind !== 'player') return;
     e.inventory = cleanInventory(join?.inventory, sim.tables.items);
+    for (const id of Object.values(e.inventory.worn)) wearMods(e, sim.tables.items.get(id), true);
     told(sim, e);
   },
   onTick(sim) {
@@ -112,11 +140,29 @@ export const itemsSystem = {
       told(sim, e);
       return true;
     }
-    if (i.type === 'use' || i.type === 'drop') {
+    if (i.type === 'unequip') {
+      const id = e.inventory?.worn[i.wear];
+      if (!id) { result(sim, e, 'unequip', false, 'nothing worn', { wear: i.wear }); return true; }
+      if (e.dead) { result(sim, e, 'unequip', false, 'dead', { wear: i.wear }); return true; }
+      if (!addItem(e.inventory, sim.tables.items, id, 1)) { result(sim, e, 'unequip', false, 'full', { wear: i.wear }); return true; }
+      delete e.inventory.worn[i.wear];
+      wearMods(e, sim.tables.items.get(id), false);
+      result(sim, e, 'unequip', true, null, { wear: i.wear, item: id });
+      told(sim, e);
+      return true;
+    }
+    if (i.type === 'use' || i.type === 'drop' || i.type === 'equip') {
       const s = e.inventory?.slots[i.slot];
       if (!s) { result(sim, e, i.type, false, 'empty slot', { slot: i.slot }); return true; }
       if (e.dead) { result(sim, e, i.type, false, 'dead', { slot: i.slot }); return true; }
       const def = sim.tables.items.get(s.item);
+      if (i.type === 'equip' || (i.type === 'use' && def?.equip)) {
+        const no = equip(sim, e, i.slot);
+        if (no) { result(sim, e, 'equip', false, no, { slot: i.slot }); return true; }
+        result(sim, e, 'equip', true, null, { slot: i.slot, item: s.item });
+        told(sim, e);
+        return true;
+      }
       if (i.type === 'use') {
         for (const m of def?.effects ?? []) applyModifier(sim, e, m);
         sim.emit('use', { tick: sim.tick, uid: e.uid, item: s.item, x: e.x, z: e.z });

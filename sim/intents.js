@@ -10,8 +10,10 @@
 //   { type: 'pickup', uid }                pick up a drop in reach (systems/items.js; one-shot)
 //   { type: 'use', slot }                  use the item in an inventory slot (one-shot)
 //   { type: 'drop', slot }                 put a slot's stack on the ground (one-shot)
+//   { type: 'equip', slot }                wear the item in an inventory slot (one-shot)
+//   { type: 'unequip', wear }              take off what is worn in an equipment slot, "Head" (one-shot)
 
-export const KINDS = ['move', 'moveTo', 'face', 'interact', 'stop', 'cast', 'pickup', 'use', 'drop'];
+export const KINDS = ['move', 'moveTo', 'face', 'interact', 'stop', 'cast', 'pickup', 'use', 'drop', 'equip', 'unequip'];
 const ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 const slotOk = (v) => Number.isInteger(v) && v >= 0 && v < 64;
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -35,7 +37,8 @@ export function check(i) {
       return { type: 'cast', ability: i.ability, ...(i.target !== undefined ? { target: i.target } : {}), ...(i.x !== undefined ? { x: i.x, z: i.z } : {}) };
     }
     case 'pickup': return typeof i.uid === 'string' && ID.test(i.uid) ? { type: 'pickup', uid: i.uid } : null;
-    case 'use': case 'drop': return slotOk(i.slot) ? { type: i.type, slot: i.slot } : null;
+    case 'use': case 'drop': case 'equip': return slotOk(i.slot) ? { type: i.type, slot: i.slot } : null;
+    case 'unequip': return typeof i.wear === 'string' && ID.test(i.wear) ? { type: 'unequip', wear: i.wear } : null;
     default: return { type: 'stop' };
   }
 }

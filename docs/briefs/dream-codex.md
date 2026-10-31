@@ -52,7 +52,12 @@ what is saved here is what plays.
    Play and on the Dream Server. Rebuild the boar stand-in as the first real template.
 4. **Shops are authored and checked, not playable.** Buying needs an intent, currency handling and a window, and is
    its own later job. Say this on the Shops tab so nobody hunts for why it does nothing.
-5. **Docs**: update `docs/tables.md`, `docs/zone-format.md` ("No template files exist yet"), the plan's status lines,
+5. **Equipment in the 8 slots** (Graves, 2026-10-31: Head, Shoulders, Top, Gloves, Belt, Pants, Boots, Cape). An item may
+   carry `equip { slot, set, worn: [MODIFIER] }`: `set` names the Ida Faber set it looks like (Advanced, Champion,
+   Newbie), `worn` holds while it is on. The sim takes `equip { slot }` and `unequip { wear }`, keeps what is worn with
+   the inventory and saves it with the player. Play's inventory wears and takes off. Showing the worn parts on the
+   player's body in Play is a later job, because it needs the worn state on the wire and Dream Characters' skin cut.
+6. **Docs**: update `docs/tables.md`, `docs/zone-format.md` ("No template files exist yet"), the plan's status lines,
    the Library README and `CLAUDE.md`'s table and planned-ports line.
 
 ## Not in this job

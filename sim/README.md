@@ -14,7 +14,7 @@ own (`math.js`, plain `{ x, y, z }` objects).
 | `intents.js` | the intents and their check |
 | `tick.js` | `createSim`, `step` (accumulator), `stepOnce`, the seeded RNG, the intent log, `replay`, player and npc movement |
 | `systems.js` | step 10: the feature registry (`registerSystem`) and the event bus (`gate`, `done`, `fire`) |
-| `systems/*.js` | the built-in systems: `ai.js` (follow, flee, hostile), `stats.js` (pools, modifiers, death, respawn), `abilities.js` (cast), `items.js` (inventory, loot, drops, pickup, use), `tables.js` (the default tables, `checkTables`) |
+| `systems/*.js` | the built-in systems: `ai.js` (follow, flee, hostile), `stats.js` (pools, modifiers, death, respawn), `abilities.js` (cast), `items.js` (inventory, equipment, loot, drops, pickup, use), `tables.js` (the default tables, `checkTables`, `readTables`; no imports, so the Codex page runs it too) |
 | `index.js` | all of the above and `createLocalServer(sim)` |
 | `walk.mjs` | `node sim/walk.mjs`: walks a player 20 m across Crystal Cascades and prints its path |
 

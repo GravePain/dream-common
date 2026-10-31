@@ -14,7 +14,7 @@ export { shapeOf, resolve, walkable, tooSteep, touches, MAX_SLOPE } from './coll
 export { check as checkIntent, KINDS as INTENTS } from './intents.js';
 export { createSim, step, stepOnce, replay, rng, TICK, MOVE } from './tick.js';
 export { registerSystem, systemsFor, REGISTRY } from './systems.js';
-export { stat, damage, kill, applyModifier, cast, inReach, foes, TOLERANCE, addItem, rollLoot, spawnDrop, cleanInventory, SLOTS, DEFAULT_TABLES, checkTables, tablesOf } from './systems/index.js';
+export { stat, damage, kill, applyModifier, cast, inReach, foes, TOLERANCE, addItem, rollLoot, spawnDrop, cleanInventory, SLOTS, DEFAULT_TABLES, STATS, WORN_STATS, EQUIP_SLOTS, EQUIP_SETS, checkTables, tablesOf, readTables, tableReader } from './systems/index.js';
 import { step, TICK } from './tick.js';
 
 const round = (v) => Math.round(v * 1000) / 1000;

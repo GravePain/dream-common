@@ -42,9 +42,11 @@ the cell its `transform.x, z` falls in: `cellOf(x, z, size)` in `web/zone.js`.
 
 - `uid` is a string unique in the zone. Converted scenes use `o12`, `a3`, `e5` for Dream World's objects,
   animals and effects (their uids are numbered separately there).
-- `template` names what it is: a library item (`lib0/Creek boulder.glb`), an animal id, or `fx:<effect>`.
-  A template file (`{ format: "dream-template", version: 1, id, name, components }`) supplies components;
-  an entity's own components win, key by key (`resolve()` in `entity.js`). No template files exist yet.
+- `template` names what it is: a library item (`lib0/Creek boulder.glb`), an animal id, `fx:<effect>`, or
+  `template:<id>`, placed from a template file `Templates/<id>.template.json` (kind `template`, made in Dream Codex:
+  `{ format: "dream-template", version: 1, id, name, components }`). `sim/bridge.js` puts its components under the
+  entity's own (they win, key by key: `resolve()` in `entity.js`), all but `model`, which is what Dream World draws
+  it with; the npc's `home` is where it was placed. Dream World lists templates under Animals, group NPCs.
 - `transform`: world metres and radians; `y` is height above the ground at `x, z`.
 - **Parents** (finding 7 of the UI review): `parent` is another entity's `uid` in the same cell. A child
   keeps its own world transform in the file, so a cell loads without its parent and a child near a cell
@@ -122,6 +124,5 @@ with every record kind and of Crystal Cascades (first draft).
 
 ## Not here yet
 
-Items, abilities and quests (Dream Codex, Dream Story); template files and an editor for them; parents
-set by any tool; the sim (step 2) reading cells; per-cell terrain (the terrain stays one record per zone);
+Quests (Dream Story); parents set by any tool; the sim (step 2) reading cells; per-cell terrain (the terrain stays one record per zone);
 streaming cells in and out.

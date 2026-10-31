@@ -164,8 +164,9 @@ Existing: Portal 5170 (hub, staging status, publish history), Dream Library 5230
 item, ability, quest kinds), Dream Forge 5210 (+ colliders, LODs), Dream World 5240 (zone editor + Play
 button), Dream Paint 5250 (+ UI/item icons), Dream Effects 5260 (ability/hit VFX), Dream Characters 5270.
 
-New authoring: Dream Sound 5310 (base tool, see above), Dream Codex 5280 (items, abilities, stats,
-modifiers, loot, NPC templates, shops; may start as a tab in the Library page), Dream Story 5290
+New authoring: Dream Sound 5310 (base tool, see above), Dream Codex (items and equipment, abilities, modifiers, loot,
+NPC templates, shops; built 2026-10-31 as a page of the Library, `/codex.html`, no port of its own; buying in shops
+and showing worn parts on the body are later jobs), Dream Story 5290
 (quests, dialogue, triggers, flags), Dream Motion 5300 (animation library, retarget, clip-to-ability
 timing; later, if needed).
 

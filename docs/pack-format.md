@@ -30,7 +30,7 @@ The JSON is canonical: every object's keys sorted, so the same input gives the s
 | `hashes` | `{ "<place\|path>": "<sha256 of the GLB>" }` for every `model` the cells place |
 | `zone` | the zone record (`web/schema/zone.js`), its `cells` list matching the pack's cells |
 | `cells` | the cell records (`web/schema/cell.js`), sorted by x then z, entities by uid, **with the colliders baked** |
-| `templates` | template records (none yet) |
+| `templates` | the template records the Library had at publish; their components are already baked into the cells' entities |
 | `colliders` | how many collider entities were baked (for the report) |
 
 Brief note: the step 9 brief wrote the zone id and the zone record both as `zone`; one JSON key cannot be

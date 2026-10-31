@@ -32,6 +32,7 @@ All dependency-free (except Dream World, which is Vite). Each is a static folder
 | `dream-characters` | 5270 | Dress and tint rigged characters in the 8 equipment slots, try animations. | the Ida Faber male and female bases |
 | `dream-sound` | 5310 | Sounds sliced and filtered from CC0 recordings (`.wav` + `.wav.sound.json`), synth presets (`.synth.json`), step clips (`.clip.json` + `.clip.json.wav`); played everywhere through `web/audio.js`. | CC0 sounds, any audio |
 | `dream-world` | 5240 | Worlds from library pieces only; scenes saved back as `.scene.json`. Has a public gallery. | everything above |
+| Dream Codex (`dream-library/public/codex.html`) | 5230 | Items and equipment, abilities, loot, shops and NPC templates without touching JSON (`Tables/`, `Templates/`). A page of the Library, not a tool of its own. | Library models and effects |
 | `dream-forge-creations` | — | Saved Forge output, a library place. | — |
 
 ## Publishing: GitHub and Morty
@@ -72,6 +73,6 @@ Rules of thumb when working here:
 
 ## Ports at a glance
 
-5170 portal · 5180 World Builder · 5190 Skyfall Blade · 5210 Forge · 5230 Library · 5240 World · 5250 Paint · 5260 Effects · 5270 Characters · 5310 Sound
+5170 portal · 5180 World Builder · 5190 Skyfall Blade · 5210 Forge · 5230 Library · 5240 World · 5250 Paint · 5260 Effects · 5270 Characters · 5310 Sound · 5320 Dream Server
 
-Planned (`docs/game-builder-plan.md`, nothing built yet): 5280 Codex · 5290 Story · 5300 Motion · 5310 Sound · 5320 Dream Server
+Planned (`docs/game-builder-plan.md`, nothing built yet): 5290 Story · 5300 Motion

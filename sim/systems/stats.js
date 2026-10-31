@@ -97,7 +97,7 @@ function respawnOf(sim, e) {
 function revive(sim, e) {
   e.dead = null;
   e.stats = freshStats(e);
-  e.mods = [];
+  e.mods = e.mods.filter((m) => m.worn); // what is worn stays on through a death
   e.tired = false;
 }
 
