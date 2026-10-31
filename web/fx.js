@@ -7,8 +7,10 @@
 //   ring:      flat discs or rings that grow and fade (shockwaves, auras, ground circles, scorch marks)
 //   trail:     a ribbon behind the effect's moving head (sword arcs, projectile trails)
 // Particles, rings and trails draw a built-in sprite, or a Library texture (`texture: "place|path"`)
-// whose luminance is the alpha (black = clear), tinted by the layer's colours. A texture that is a grid
-// of frames (`frames: "4x4"`) plays through them over each particle's life, or at `fps`.
+// whose luminance is the alpha (black = clear), tinted by the layer's colours. With `look: 'colours'`
+// (particles and rings) it keeps its own colours and alpha instead (smoke puffs, foliage cut-outs).
+// `round` fades a square picture out to a circle, `upright` stops a sprite being born at a random turn.
+// A texture that is a grid of frames (`frames: "4x4"`) plays through them over each particle's life, or at `fps`.
 // An effect loops (the default), or with `mode: 'once'` plays when asked: each layer then runs from
 // `start` for `duration` seconds (0 = until the effect ends), so one effect can cast, travel and hit.
 // `travel: { start, end, to: [x, y, z], arc }` moves the effect's head (where layers are born) in that
@@ -21,7 +23,7 @@ import { fileUrl } from './resolve.js';
 
 const SPRITES = ['soft', 'spark', 'smoke', 'drop', 'leaf', 'star', 'ring'];
 // a Library texture as the shape, and its frames when it is a sheet; 'texture' and 'grid' are editor types
-const SHAPE = [['texture', 'Shape', 'texture'], ['frames', 'Sheet columns x rows', 'grid'], ['fps', 'Frames per second (0 = over its life)', 0, 60, 1]];
+const SHAPE = [['texture', 'Shape', 'texture'], ['look', 'Picture is', ['brightness', 'colours']], ['round', 'Round off its edges', 'bool'], ['upright', 'Keep upright', 'bool'], ['frames', 'Sheet columns x rows', 'grid'], ['fps', 'Frames per second (0 = over its life)', 0, 60, 1]];
 // when a layer runs in a play-once effect
 const TIMING = [['start', 'Starts at (s)', 0, 10, 0.05], ['duration', 'Lasts (s, 0 = to the end)', 0, 10, 0.05]];
 const OFFSET = [['x', 'Offset X', -20, 20, 0.05], ['y', 'Offset Y', -5, 30, 0.05], ['z', 'Offset Z', -20, 20, 0.05]];
@@ -132,7 +134,7 @@ export const LAYER_DEFAULTS = {
   ring: { sprite: 'ring', blend: 'add', face: 'ground', every: 1, burst: 1, life: 0.8, sizeStart: 0.2, sizeEnd: 3, colorStart: '#ffffff', colorEnd: '#ffffff', alpha: 0.9, fadeIn: 0.05, fadeOut: 0.6, spin: 0, x: 0, y: 0.05, z: 0 },
   trail: { blend: 'add', width: 0.3, widthEnd: 0, life: 0.3, arc: 0, radius: 1, colorStart: '#ffffff', colorEnd: '#9fd8ff', alpha: 0.9, x: 0, y: 0, z: 0 },
 };
-for (const k in LAYER_DEFAULTS) Object.assign(LAYER_DEFAULTS[k], { texture: '', frames: '1x1', fps: 0, start: 0, duration: 0 });
+for (const k in LAYER_DEFAULTS) Object.assign(LAYER_DEFAULTS[k], { texture: '', look: 'brightness', round: false, upright: false, frames: '1x1', fps: 0, start: 0, duration: 0 });
 export const layer = (kind, values = {}) => ({ kind, name: kind[0].toUpperCase() + kind.slice(1), ...structuredClone(LAYER_DEFAULTS[kind]), ...values });
 
 /** Ready-made effects to start from. */
@@ -218,6 +220,150 @@ PRESETS.push(
   ]),
 );
 
+// three effects from each Kenney pack, drawn only from that pack: two abilities and a light for the night
+// (Bramble and Glowing grove upright, since grass does not grow sideways); they open over the night sky
+const packFx = (place, group, shapes) => {
+  const tex = (name) => `${place}|${shapes(name)}`;
+  const moment = { group, backdrop: 'night' };
+  return {
+    tex,
+    ability: (name, length, layers, more = {}) => once(name, length, layers, { ...moment, ...more }),
+    night: (name, layers) => ({ format: 'dream-fx', version: 1, name, ...moment, layers }),
+  };
+};
+{
+  const { tex: T, ability, night } = packFx('cc0-kenney-particles', 'Kenney particles', (n) => `${n}.png`);
+  PRESETS.push(
+    ability('Arcane nova', 1.7, [
+      layer('ring', { name: 'Sigil', texture: T('magic_01'), every: 5, life: 1.4, sizeStart: 1.6, sizeEnd: 4, spin: 1.2, colorStart: '#e6d0ff', colorEnd: '#7a4aff', fadeIn: 0.1, y: 0.04, duration: 0.05 }),
+      layer('ring', { name: 'Charge', texture: T('magic_05'), face: 'camera', every: 5, life: 0.4, sizeStart: 0.4, sizeEnd: 2.2, spin: 2, colorStart: '#ffffff', colorEnd: '#a07aff', fadeIn: 0.5, fadeOut: 0.2, y: HAND, duration: 0.05 }),
+      layer('ring', { name: 'Flash', texture: T('star_09'), face: 'camera', every: 5, life: 0.3, sizeStart: 5, sizeEnd: 1, colorStart: '#ffffff', colorEnd: '#c8a0ff', fadeIn: 0, fadeOut: 0.9, y: HAND, start: 0.38, duration: 0.05 }),
+      layer('ring', { name: 'Shockwave', texture: T('circle_03'), every: 5, life: 0.7, sizeStart: 0.4, sizeEnd: 9, colorStart: '#e6d0ff', colorEnd: '#6a3aff', fadeIn: 0, y: 0.06, start: 0.38, duration: 0.05 }),
+      layer('particles', { name: 'Star burst', texture: T('star_07'), blend: 'add', shape: 'point', every: 5, burst: 45, life: 0.9, lifeVary: 0.4, speed: 8, speedVary: 0.5, spread: 1, drag: 3, spin: 3, sizeStart: 0.5, sizeEnd: 0.08, colorStart: '#ffffff', colorEnd: '#9a6aff', alpha: 1, fadeIn: 0, flicker: 0.4, y: HAND, start: 0.38, duration: 0.05 }),
+      layer('light', { name: 'Glow', color: '#a07aff', intensity: 12, distance: 14, flicker: 0.2, y: HAND, duration: 1.3 }),
+    ]),
+    ability('Lightning strike', 1.1, [
+      layer('ring', { name: 'Bolt', texture: T('spark_06'), face: 'camera', upright: true, every: 0.09, life: 0.09, sizeStart: 9, sizeEnd: 9, colorStart: '#ffffff', colorEnd: '#9fd0ff', alpha: 1, fadeIn: 0, fadeOut: 0.3, y: 4.3, duration: 0.3 }),
+      layer('ring', { name: 'Fork', texture: T('spark_05'), face: 'camera', upright: true, every: 0.13, life: 0.1, sizeStart: 8, sizeEnd: 8, colorStart: '#d8ecff', colorEnd: '#6aa8ff', alpha: 1, fadeIn: 0, fadeOut: 0.3, y: 3.8, start: 0.05, duration: 0.25 }),
+      layer('ring', { name: 'Impact flash', texture: T('star_08'), face: 'camera', every: 5, life: 0.22, sizeStart: 4, sizeEnd: 1.2, colorStart: '#ffffff', colorEnd: '#9fd0ff', fadeIn: 0, y: 0.5, duration: 0.05 }),
+      layer('ring', { name: 'Shock', texture: T('circle_02'), every: 5, life: 0.45, sizeStart: 0.4, sizeEnd: 5, colorStart: '#ffffff', colorEnd: '#6aa8ff', fadeIn: 0, y: 0.05, duration: 0.05 }),
+      layer('ring', { name: 'Scorch', texture: T('scorch_02'), blend: 'alpha', every: 5, life: 1, sizeStart: 2.2, sizeEnd: 2.4, colorStart: '#14161c', colorEnd: '#2a2c34', alpha: 0.9, fadeIn: 0.02, fadeOut: 0.5, y: 0.02, duration: 0.05 }),
+      layer('particles', { name: 'Sparks', texture: T('star_04'), blend: 'add', shape: 'point', every: 5, burst: 35, life: 0.6, lifeVary: 0.5, speed: 7, speedVary: 0.5, dirY: 1, spread: 0.7, gravity: 12, drag: 1, stretch: 0.3, sizeStart: 0.3, sizeEnd: 0.05, colorStart: '#ffffff', colorEnd: '#7ab8ff', alpha: 1, fadeIn: 0, y: 0.1, duration: 0.05 }),
+      layer('light', { name: 'Flash light', color: '#bcdcff', intensity: 20, distance: 24, flicker: 0.9, y: 4, duration: 0.4 }),
+    ]),
+    night('Torch flame', [
+      layer('ring', { name: 'Halo', texture: T('circle_05'), face: 'camera', every: 0.5, life: 1.4, sizeStart: 2.6, sizeEnd: 3, colorStart: '#ffb060', colorEnd: '#ff7a2a', alpha: 0.18, fadeIn: 0.5, fadeOut: 0.5, y: 0.5 }),
+      layer('particles', { name: 'Tongues', texture: T('flame_05'), blend: 'add', upright: true, shape: 'disc', area: 0.14, rate: 20, life: 0.5, lifeVary: 0.3, speed: 0.8, spread: 0.08, sizeStart: 0.7, sizeEnd: 0.35, colorStart: '#ffe6a0', colorEnd: '#e0401a', alpha: 0.9, fadeIn: 0.15, fadeOut: 0.5, flicker: 0.3, y: 0.3 }),
+      layer('particles', { name: 'Licks', texture: T('flame_06'), blend: 'add', upright: true, shape: 'disc', area: 0.2, rate: 12, life: 0.45, lifeVary: 0.3, speed: 1, spread: 0.1, sizeStart: 0.6, sizeEnd: 0.25, colorStart: '#ffc860', colorEnd: '#c8301a', alpha: 0.8, fadeIn: 0.15, fadeOut: 0.5, flicker: 0.4, y: 0.4 }),
+      layer('particles', { name: 'Embers', texture: T('star_04'), blend: 'add', shape: 'disc', area: 0.15, rate: 5, life: 1.8, speed: 1.2, spread: 0.2, gravity: -0.3, wander: 1, sizeStart: 0.14, sizeEnd: 0.04, colorStart: '#ffcf6a', colorEnd: '#ff5a1a', alpha: 1, flicker: 0.6, y: 0.7 }),
+      layer('light', { name: 'Light', color: '#ff9a4a', intensity: 9, distance: 13, flicker: 0.45, y: 0.8 }),
+    ]),
+  );
+}
+{
+  const { tex: T, ability, night } = packFx('cc0-kenney-pattern-pack-extra', 'Kenney pattern extra', (n) => `Default/pattern_${n}.png`);
+  PRESETS.push(
+    ability('Skull curse', 2.8, [
+      layer('ring', { name: 'Curse circle', texture: T('074'), round: true, every: 5, life: 2.6, sizeStart: 3.4, sizeEnd: 4.4, spin: 0.5, colorStart: '#8aff6a', colorEnd: '#3a9a4a', alpha: 0.7, fadeIn: 0.1, fadeOut: 0.3, y: 0.04, duration: 0.05 }),
+      layer('ring', { name: 'Skull', texture: T('015'), round: true, upright: true, every: 5, life: 2.4, sizeStart: 2.2, sizeEnd: 2.5, colorStart: '#d8ffc8', colorEnd: '#5ad46a', fadeIn: 0.15, fadeOut: 0.3, y: 0.07, start: 0.1, duration: 0.05 }),
+      layer('particles', { name: 'Rising skulls', texture: T('015'), blend: 'add', round: true, upright: true, shape: 'disc', area: 3, rate: 7, life: 1.3, lifeVary: 0.2, speed: 1.5, spread: 0.08, sizeStart: 0.45, sizeEnd: 0.9, colorStart: '#c8ff9a', colorEnd: '#2a7a3a', alpha: 0.9, fadeIn: 0.2, fadeOut: 0.5, duration: 1.8 }),
+      layer('light', { name: 'Sick light', color: '#6aff6a', intensity: 7, distance: 10, flicker: 0.3, y: 1, duration: 2.5 }),
+    ]),
+    ability('Clockwork ward', 3, [
+      layer('ring', { name: 'Big gear', texture: T('070'), round: true, every: 5, life: 2.8, sizeStart: 3.4, sizeEnd: 3.6, spin: 1.3, colorStart: '#ffe6a0', colorEnd: '#c8862a', alpha: 0.8, fadeIn: 0.1, fadeOut: 0.25, y: 0.04, duration: 0.05 }),
+      layer('ring', { name: 'Small gears', texture: T('071'), round: true, every: 5, life: 2.8, sizeStart: 1.6, sizeEnd: 1.7, spin: -2.4, colorStart: '#fff6d8', colorEnd: '#e0a84a', alpha: 0.9, fadeIn: 0.1, fadeOut: 0.25, y: 0.07, duration: 0.05 }),
+      layer('ring', { name: 'Wall gear', texture: T('069'), round: true, face: 'camera', every: 5, life: 2.4, sizeStart: 2.4, sizeEnd: 2.7, spin: 0.8, colorStart: '#ffd27a', colorEnd: '#a0641a', alpha: 0.28, fadeIn: 0.15, fadeOut: 0.3, y: HAND, start: 0.2, duration: 0.05 }),
+      layer('particles', { name: 'Cogs', texture: T('068'), blend: 'add', round: true, shape: 'disc', area: 2.8, rate: 10, life: 1.2, speed: 1.1, spread: 0.1, spin: 3, sizeStart: 0.28, sizeEnd: 0.12, colorStart: '#fff1c0', colorEnd: '#c8862a', alpha: 1, duration: 2.2 }),
+      layer('light', { name: 'Brass light', color: '#ffc860', intensity: 7, distance: 9, flicker: 0.08, y: 1.2, duration: 2.8 }),
+    ]),
+    night('Moon and stars lantern', [
+      layer('ring', { name: 'Moon on the ground', texture: T('003'), round: true, upright: true, every: 7, life: 9, sizeStart: 7, sizeEnd: 7, spin: 0.04, colorStart: '#a8c4ff', colorEnd: '#c8d8ff', alpha: 0.42, fadeIn: 0.3, fadeOut: 0.3, y: 0.04 }),
+      layer('ring', { name: 'Lantern', texture: T('033'), round: true, upright: true, face: 'camera', every: 1.2, life: 2.4, sizeStart: 0.9, sizeEnd: 1.05, colorStart: '#ffffff', colorEnd: '#c8d8ff', alpha: 0.7, fadeIn: 0.4, fadeOut: 0.4, y: 2.4 }),
+      layer('particles', { name: 'Twinkles', texture: T('002'), blend: 'add', round: true, shape: 'disc', area: 5, areaH: 2.5, rate: 3, life: 3, speed: 0.08, spread: 1, wander: 0.12, spin: 0.5, sizeStart: 0.32, sizeEnd: 0.32, colorStart: '#d8e6ff', colorEnd: '#8aa8ff', alpha: 0.9, fadeIn: 0.3, fadeOut: 0.3, flicker: 0.6, y: 0.5 }),
+      layer('light', { name: 'Moonlight', color: '#a8c4ff', intensity: 9, distance: 14, flicker: 0.03, y: 2.4 }),
+    ]),
+  );
+}
+{
+  const { tex: T, ability, night } = packFx('cc0-kenney-dev-essentials-textures', 'Kenney dev essentials', (n) => `${n}.png`);
+  const radial = T('Gradient/gradient-radial'), pixel = T('4×4 Pixels/pixel-white');
+  PRESETS.push(
+    ability('Judgement beam', 2, [
+      layer('ring', { name: 'Warning', texture: radial, every: 5, life: 0.4, sizeStart: 1, sizeEnd: 3, colorStart: '#fff6d8', colorEnd: '#ffd27a', alpha: 0.7, fadeIn: 0.6, fadeOut: 0.3, y: 0.04, duration: 0.05 }),
+      layer('trail', { name: 'Beam', texture: T('Gradient/gradient-vertical-mirror'), width: 1.8, widthEnd: 1.2, life: 0.7, colorStart: '#ffffff', colorEnd: '#ffd27a', alpha: 1, y: 16, start: 0.3, duration: 0.18 }),
+      layer('ring', { name: 'Flash', texture: radial, face: 'camera', every: 5, life: 0.35, sizeStart: 7, sizeEnd: 2, colorStart: '#ffffff', colorEnd: '#ffd27a', fadeIn: 0, fadeOut: 0.9, y: 16.6, start: 0.4, duration: 0.05 }),
+      layer('ring', { name: 'Burn', texture: T('Noise/perlin-noise'), round: true, blend: 'alpha', every: 5, life: 1.4, sizeStart: 3, sizeEnd: 3.3, colorStart: '#1a1208', colorEnd: '#30241a', alpha: 0.8, fadeIn: 0.02, fadeOut: 0.5, y: 0.03, start: 0.4, duration: 0.05 }),
+      layer('ring', { name: 'Wave', texture: T('Gradient/gradient-radial'), every: 5, life: 0.5, sizeStart: 1, sizeEnd: 8, colorStart: '#fff1c0', colorEnd: '#ff9a2a', alpha: 0.6, fadeIn: 0, y: 0.06, start: 0.4, duration: 0.05 }),
+      layer('particles', { name: 'Bits', texture: pixel, blend: 'add', upright: true, shape: 'point', every: 5, burst: 50, life: 0.9, lifeVary: 0.5, speed: 7, speedVary: 0.6, dirY: 1, spread: 0.8, gravity: 8, drag: 1, sizeStart: 0.14, sizeEnd: 0.03, colorStart: '#ffffff', colorEnd: '#ffb04a', alpha: 1, fadeIn: 0, y: 16.1, start: 0.4, duration: 0.05 }),
+      layer('light', { name: 'Holy light', color: '#ffe6a0', intensity: 18, distance: 20, flicker: 0.1, y: 17, start: 0.3, duration: 1 }),
+    ], { travel: { start: 0.3, end: 0.4, to: [0, -16, 0] } }),
+    ability('Radar sweep', 2.6, [
+      layer('ring', { name: 'Sweep', texture: T('Gradient/gradient-angular'), round: true, every: 5, life: 2.4, sizeStart: 8, sizeEnd: 8, spin: 3.6, colorStart: '#7affb0', colorEnd: '#2ac87a', alpha: 0.75, fadeIn: 0.08, fadeOut: 0.2, y: 0.04, duration: 0.05 }),
+      layer('ring', { name: 'Ping', texture: radial, every: 0.8, life: 0.8, sizeStart: 0.3, sizeEnd: 8, colorStart: '#b0ffd0', colorEnd: '#2ac87a', alpha: 0.3, fadeIn: 0, y: 0.06, duration: 1.8 }),
+      layer('particles', { name: 'Blips', texture: pixel, blend: 'add', upright: true, shape: 'disc', area: 7, rate: 30, life: 0.7, lifeVary: 0.4, speed: 0.7, spread: 0.05, sizeStart: 0.09, sizeEnd: 0.09, colorStart: '#d8ffe6', colorEnd: '#2ac87a', alpha: 1, flicker: 0.7, y: 0.1, duration: 2.1 }),
+      layer('light', { name: 'Screen light', color: '#5effa0', intensity: 6, distance: 11, flicker: 0.1, y: 1, duration: 2.4 }),
+    ]),
+    night('Street lamp', [
+      layer('ring', { name: 'Glow', texture: radial, face: 'camera', every: 0.8, life: 2.4, sizeStart: 2.6, sizeEnd: 2.8, colorStart: '#fff1d0', colorEnd: '#ffc880', alpha: 0.55, fadeIn: 0.4, fadeOut: 0.4, y: 3.4 }),
+      layer('ring', { name: 'Pool', texture: radial, every: 0.8, life: 2.4, sizeStart: 9, sizeEnd: 9, colorStart: '#ffd9a0', colorEnd: '#ffc880', alpha: 0.1, fadeIn: 0.4, fadeOut: 0.4, y: 0.04 }),
+      layer('ring', { name: 'Haze', texture: T('Noise/perlin-noise'), round: true, face: 'camera', every: 2, life: 7, sizeStart: 4, sizeEnd: 5, spin: 0.1, colorStart: '#ffe0b0', colorEnd: '#ffd090', alpha: 0.07, fadeIn: 0.4, fadeOut: 0.4, y: 2.2 }),
+      layer('particles', { name: 'Moths', texture: pixel, upright: true, shape: 'disc', area: 1.4, areaH: 1, rate: 3, life: 4, speed: 0.3, spread: 1, wander: 2.5, sizeStart: 0.05, sizeEnd: 0.05, colorStart: '#fff6e0', colorEnd: '#ffe0b0', alpha: 0.9, fadeIn: 0.2, fadeOut: 0.2, y: 2.9 }),
+      layer('light', { name: 'Lamp', color: '#ffd9a0', intensity: 16, distance: 16, flicker: 0.02, y: 3.4 }),
+    ]),
+  );
+}
+{
+  const colours = { look: 'colours', blend: 'alpha' };
+  const { tex: T, ability, night } = packFx('cc0-kenney-foliage-sprites', 'Kenney foliage', (n) => `Flat/sprite_${n}.png`);
+  PRESETS.push(
+    ability('Leaf storm', 2.4, [
+      layer('ring', { ...colours, name: 'Whirl', texture: T('0048'), every: 5, life: 1.3, sizeStart: 0.6, sizeEnd: 6, spin: 3, colorStart: '#b8e86a', colorEnd: '#4a8a2a', alpha: 0.8, fadeIn: 0.05, fadeOut: 0.6, y: 0.05, duration: 0.05 }),
+      layer('particles', { ...colours, name: 'Maple', texture: T('0035'), shape: 'disc', area: 1, rate: 60, life: 1.5, lifeVary: 0.4, speed: 5, speedVary: 0.5, dirY: 0.6, spread: 0.9, gravity: 1, drag: 1.2, wander: 5, spin: 6, sizeStart: 0.4, sizeEnd: 0.28, colorStart: '#d8f07a', colorEnd: '#6aa83a', alpha: 1, fadeOut: 0.3, y: 0.6, duration: 0.9 }),
+      layer('particles', { ...colours, name: 'Oak', texture: T('0037'), shape: 'disc', area: 1, rate: 35, life: 1.5, lifeVary: 0.4, speed: 4, speedVary: 0.5, dirY: 0.6, spread: 0.9, gravity: 1, drag: 1.2, wander: 5, spin: -5, sizeStart: 0.34, sizeEnd: 0.24, colorStart: '#ffc84a', colorEnd: '#c8641a', alpha: 1, fadeOut: 0.3, y: 0.6, duration: 0.9 }),
+      layer('light', { name: 'Green light', color: '#a0e86a', intensity: 5, distance: 8, flicker: 0.2, y: 1, duration: 1.6 }),
+    ]),
+    ability('Bramble bind', 3.2, [
+      layer('ring', { ...colours, name: 'Roots', texture: T('0045'), every: 5, life: 3, sizeStart: 2, sizeEnd: 4.4, spin: 0.15, colorStart: '#5a8a3a', colorEnd: '#2a4a1a', alpha: 0.9, fadeIn: 0.1, fadeOut: 0.2, y: 0.04, duration: 0.05 }),
+      layer('particles', { ...colours, name: 'Thorns', texture: T('0018'), upright: true, shape: 'disc', area: 3.2, rate: 26, life: 2.3, lifeVary: 0.2, speed: 0.7, speedVary: 0, spread: 0, drag: 1.6, sizeStart: 0.25, sizeEnd: 1.3, colorStart: '#7ab84a', colorEnd: '#2f6a2a', alpha: 1, fadeIn: 0.1, fadeOut: 0.25, y: 0.1, duration: 0.9 }),
+      layer('particles', { ...colours, name: 'Vines', texture: T('0044'), upright: true, shape: 'disc', area: 2.6, rate: 10, life: 2.3, lifeVary: 0.2, speed: 0.8, speedVary: 0, spread: 0, drag: 1.6, sizeStart: 0.25, sizeEnd: 1.6, colorStart: '#a0d86a', colorEnd: '#3a7a2a', alpha: 1, fadeIn: 0.1, fadeOut: 0.25, y: 0.1, start: 0.15, duration: 0.8 }),
+      layer('light', { name: 'Forest light', color: '#7ae06a', intensity: 4, distance: 7, flicker: 0.1, y: 0.8, duration: 2.8 }),
+    ]),
+    night('Glowing grove', [
+      layer('particles', { name: 'Mushrooms', look: 'colours', texture: T('0026'), blend: 'add', upright: true, shape: 'disc', area: 6, rate: 1.4, life: 9, lifeVary: 0.2, speed: 0, spread: 0, sizeStart: 0.9, sizeEnd: 1, colorStart: '#5affd8', colorEnd: '#3ad0ff', alpha: 0.9, fadeIn: 0.2, fadeOut: 0.2, y: 0.42 }),
+      layer('particles', { name: 'Bulbs', look: 'colours', texture: T('0010'), blend: 'add', upright: true, shape: 'disc', area: 7, rate: 1.6, life: 9, lifeVary: 0.2, speed: 0, spread: 0, sizeStart: 0.8, sizeEnd: 0.85, colorStart: '#a07aff', colorEnd: '#5affd8', alpha: 0.8, fadeIn: 0.2, fadeOut: 0.2, y: 0.36 }),
+      layer('particles', { name: 'Ferns', look: 'colours', texture: T('0011'), blend: 'add', upright: true, shape: 'disc', area: 8, rate: 2, life: 9, lifeVary: 0.2, speed: 0, spread: 0, sizeStart: 1, sizeEnd: 1.05, colorStart: '#2ac8a0', colorEnd: '#1a7a8a', alpha: 0.55, fadeIn: 0.2, fadeOut: 0.2, y: 0.45 }),
+      layer('particles', { name: 'Spores', look: 'colours', texture: T('0030'), blend: 'add', shape: 'disc', area: 7, rate: 7, life: 5, speed: 0.25, spread: 0.3, gravity: -0.03, wander: 0.4, spin: 1, sizeStart: 0.08, sizeEnd: 0.04, colorStart: '#d8fff0', colorEnd: '#5affd8', alpha: 1, fadeIn: 0.2, fadeOut: 0.3, flicker: 0.5, y: 0.2 }),
+      layer('light', { name: 'Grove light', color: '#4affd0', intensity: 9, distance: 13, flicker: 0.08, y: 1.2 }),
+    ]),
+  );
+}
+{
+  const colours = { look: 'colours', blend: 'alpha' };
+  const { tex: T, ability, night } = packFx('cc0-kenney-smoke-particles', 'Kenney smoke', (n) => `${n}.png`);
+  const boom = (n) => T(`Explosion/explosion0${n}`), black = (n) => T(`Black smoke/blackSmoke${n}`), fart = (n) => T(`Fart/fart0${n}`);
+  PRESETS.push(
+    ability('Fire blast', 2.6, [
+      layer('particles', { ...colours, name: 'Black smoke', texture: black('04'), shape: 'disc', area: 1.2, rate: 16, life: 1.6, lifeVary: 0.3, speed: 2, spread: 0.5, gravity: -0.5, drag: 1, spin: 0.6, sizeStart: 1.4, sizeEnd: 3.8, alpha: 0.85, fadeIn: 0.1, fadeOut: 0.6, y: 0.8, start: 0.15, duration: 0.6 }),
+      layer('particles', { ...colours, name: 'Fireball 1', texture: boom(0), shape: 'disc', area: 0.8, every: 5, burst: 10, life: 0.6, lifeVary: 0.3, speed: 3, spread: 1, drag: 3, spin: 1, sizeStart: 1.2, sizeEnd: 3.2, alpha: 1, fadeIn: 0, fadeOut: 0.5, y: 1, duration: 0.05 }),
+      layer('particles', { ...colours, name: 'Fireball 2', texture: boom(4), shape: 'disc', area: 1, every: 5, burst: 8, life: 0.7, lifeVary: 0.3, speed: 3.4, spread: 1, drag: 3, spin: 1, sizeStart: 1, sizeEnd: 2.8, alpha: 1, fadeIn: 0, fadeOut: 0.5, y: 1.2, start: 0.1, duration: 0.05 }),
+      layer('ring', { look: 'colours', blend: 'add', name: 'Flash', texture: T('Flash/flash00'), face: 'camera', every: 5, life: 0.28, sizeStart: 2.4, sizeEnd: 5, fadeIn: 0, fadeOut: 0.9, y: 1, duration: 0.05 }),
+      layer('light', { name: 'Blast light', color: '#ff8a3a', intensity: 18, distance: 18, flicker: 0.3, y: 1.4, duration: 0.8 }),
+    ]),
+    ability('Toxic cloud', 4.5, [
+      layer('particles', { ...colours, name: 'Low cloud', texture: fart(0), shape: 'disc', area: 3.4, rate: 9, life: 2.4, lifeVary: 0.3, speed: 0.3, spread: 0.8, wander: 0.5, spin: 0.3, sizeStart: 1, sizeEnd: 2.4, alpha: 0.6, fadeIn: 0.25, fadeOut: 0.5, y: 1.1, duration: 2.6 }),
+      layer('particles', { ...colours, name: 'High cloud', texture: fart(4), shape: 'disc', area: 2.6, rate: 6, life: 2.2, lifeVary: 0.3, speed: 0.7, spread: 0.4, wander: 0.5, spin: -0.3, sizeStart: 0.8, sizeEnd: 2.4, alpha: 0.5, fadeIn: 0.25, fadeOut: 0.5, y: 1.2, start: 0.2, duration: 2.4 }),
+      layer('ring', { look: 'colours', blend: 'add', name: 'Burst', texture: fart(7), face: 'camera', every: 5, life: 0.6, sizeStart: 1, sizeEnd: 4.6, alpha: 0.7, fadeIn: 0, fadeOut: 0.8, y: 0.8, duration: 0.05 }),
+      layer('light', { name: 'Sick glow', color: '#7aff5a', intensity: 6, distance: 11, flicker: 0.12, y: 1, duration: 3.2 }),
+    ]),
+    night('Brazier', [
+      layer('particles', { ...colours, name: 'Smoke', texture: black('10'), shape: 'disc', area: 0.3, rate: 5, life: 3, lifeVary: 0.3, speed: 1, spread: 0.12, gravity: -0.1, windX: 0.2, wander: 0.2, spin: 0.4, sizeStart: 0.5, sizeEnd: 2, alpha: 0.5, fadeIn: 0.2, fadeOut: 0.7, y: 1.3 }),
+      layer('particles', { name: 'Flames', look: 'colours', texture: boom(2), blend: 'add', shape: 'disc', area: 0.5, rate: 18, life: 0.55, lifeVary: 0.3, speed: 1.3, spread: 0.1, gravity: -1, spin: 1, sizeStart: 0.85, sizeEnd: 0.3, alpha: 0.9, fadeIn: 0.1, fadeOut: 0.5, flicker: 0.25, y: 0.3 }),
+      layer('particles', { name: 'Core', look: 'colours', texture: T('Flash/flash03'), blend: 'add', shape: 'disc', area: 0.3, rate: 10, life: 0.4, speed: 0.5, spread: 0.2, spin: 2, sizeStart: 0.65, sizeEnd: 0.3, alpha: 0.75, fadeIn: 0.1, fadeOut: 0.5, flicker: 0.3, y: 0.3 }),
+      layer('light', { name: 'Firelight', color: '#ff8a3a', intensity: 12, distance: 15, flicker: 0.5, y: 1 }),
+    ]),
+  );
+}
+
 // ---------- sprites: drawn once on canvases, shared by every effect ----------
 const spriteCache = new Map();
 function spriteTexture(THREE, kind) {
@@ -263,22 +409,28 @@ function spriteTexture(THREE, kind) {
 
 const loading = new Set();
 /** A Library texture ("place|path"), loaded once and shared by every effect that uses it. */
-export function loadTexture(THREE, ref) {
-  if (spriteCache.has(ref)) return spriteCache.get(ref);
+export function loadTexture(THREE, ref, colours = false) {
+  const key = colours ? `${ref}|colours` : ref;
+  if (spriteCache.has(key)) return spriteCache.get(key);
   const [place, path] = ref.split('|');
   let t;
   const wait = new Promise((done) => { t = new THREE.TextureLoader().load(fileUrl(place, path), done, undefined, done); });
   loading.add(wait);
   wait.then(() => loading.delete(wait));
-  t.colorSpace = THREE.NoColorSpace; // read as stored: its brightness is the alpha the artist drew
-  spriteCache.set(ref, t);
+  // read as stored when its brightness is the alpha the artist drew; a picture's own colours are sRGB
+  t.colorSpace = colours ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  spriteCache.set(key, t);
   return t;
 }
 /** Resolves once every Library texture asked for so far has loaded (or failed): before a thumbnail. */
 export const texturesReady = () => Promise.all([...loading]);
 const grid = (s) => { const [c, r] = String(s || '1x1').toLowerCase().split('x').map((n) => Math.max(1, Math.round(+n) || 1)); return [c, r ?? c]; };
-// the shape a layer draws: its texture (luminance is the alpha) or its built-in sprite
-const shapeOf = (THREE, L) => (L.texture ? { map: loadTexture(THREE, L.texture), lum: 1 } : { map: spriteTexture(THREE, L.sprite ?? 'soft'), lum: 0 });
+// the shape a layer draws: its texture (luminance is the alpha, or its own colours) or its built-in sprite
+const shapeOf = (THREE, L) => {
+  if (!L.texture) return { map: spriteTexture(THREE, L.sprite ?? 'soft'), lum: 0 };
+  const colours = L.look === 'colours';
+  return { map: loadTexture(THREE, L.texture, colours), lum: colours ? 0 : 1 };
+};
 
 // ---------- particles ----------
 const PARTICLE_VERT = `
@@ -289,8 +441,10 @@ attribute float aFrame;
 uniform float uStretch, uFlat;
 uniform vec2 uGrid;
 varying vec2 vUv;
+varying vec2 vCell;
 varying vec4 vColor;
 void main() {
+  vCell = uv;
   vec3 centre = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz;
   vec3 toCam = normalize(cameraPosition - centre);
   vec3 vel = mat3(modelMatrix) * aMotion.xyz;
@@ -323,13 +477,16 @@ void main() {
 }`;
 const PARTICLE_FRAG = `
 uniform sampler2D uMap;
-uniform float uLum;
+uniform float uLum, uRound;
 varying vec2 vUv;
+varying vec2 vCell;
 varying vec4 vColor;
 void main() {
   vec4 t = texture2D(uMap, vUv);
   // a Library texture: white shapes on black, so its brightness is how solid it is
   if (uLum > 0.5) t = vec4(1.0, 1.0, 1.0, dot(t.rgb, vec3(0.299, 0.587, 0.114)) * t.a);
+  // a square picture with no edge of its own, faded out to a circle
+  if (uRound > 0.5) t.a *= 1.0 - smoothstep(0.62, 0.95, length(vCell - 0.5) * 2.0);
   gl_FragColor = vec4(vColor.rgb * t.rgb, vColor.a * t.a);
   if (gl_FragColor.a < 0.003) discard;
   #include <colorspace_fragment>
@@ -354,7 +511,7 @@ function particleLayer(THREE, L, ctx) {
   const mat = new THREE.ShaderMaterial({
     vertexShader: PARTICLE_VERT, fragmentShader: PARTICLE_FRAG, transparent: true, depthWrite: false, side: flat ? THREE.DoubleSide : THREE.FrontSide,
     blending: L.blend === 'add' ? THREE.AdditiveBlending : THREE.NormalBlending,
-    uniforms: { uMap: { value: shape.map }, uLum: { value: shape.lum }, uStretch: { value: L.stretch }, uFlat: { value: flat ? 1 : 0 }, uGrid: { value: new THREE.Vector2(cols, rows) } },
+    uniforms: { uMap: { value: shape.map }, uLum: { value: shape.lum }, uRound: { value: L.round ? 1 : 0 }, uStretch: { value: L.stretch }, uFlat: { value: flat ? 1 : 0 }, uGrid: { value: new THREE.Vector2(cols, rows) } },
   });
   const mesh = new THREE.InstancedMesh(geo, mat, max);
   mesh.frustumCulled = false;
@@ -366,7 +523,7 @@ function particleLayer(THREE, L, ctx) {
   dir.normalize();
   let carry = 0, clock = 0;
   const born = (at = null, tint = null) => {
-    const p = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), age: 0, life: L.life * (1 - L.lifeVary * Math.random()), spin: Math.random() * 6.28, seed: Math.random() * 100, tint };
+    const p = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), age: 0, life: L.life * (1 - L.lifeVary * Math.random()), spin: L.upright ? 0 : Math.random() * 6.28, seed: Math.random() * 100, tint };
     const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * L.area / 2;
     if (L.shape === 'disc') p.pos.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     else if (L.shape === 'box') p.pos.set((Math.random() - 0.5) * L.area, Math.random() * L.areaH, (Math.random() - 0.5) * L.area);
