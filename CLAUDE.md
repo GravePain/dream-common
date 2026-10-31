@@ -51,7 +51,7 @@ Since 2026-10-31 the series may use anything the owner is entitled to, including
 
 ## Documents that belong here
 
-Reviews, architecture notes and plans for the series go in `docs/` here, not in a tool's repo: `docs/review-2026-10-29.md` (the series review and its action list), `docs/hosting-plan.md` (the VPS plan, parked while everything is LAN-only), `docs/publishing.md`. A tool's own README stays with the tool.
+Reviews, architecture notes and plans for the series go in `docs/` here, not in a tool's repo: `docs/review-2026-10-29.md` (the series review and its action list), `docs/hosting-plan.md` (the VPS plan, parked while everything is LAN-only), `docs/publishing.md`, and **`docs/guide-for-humans.md`, the administrator and GM manual: when a change alters what Graves presses or sees on the Status, GM or Bots pages, in publishing, or in running the servers, change it in the same piece of work.** A tool's own README stays with the tool.
 
 ## dream-common (this repo)
 
