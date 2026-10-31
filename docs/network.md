@@ -67,7 +67,7 @@ The Library's files (`dream-forge-creations`, a library place, not a git repo) e
 
 ## Things that have gone wrong
 
-- **Half-applied pull on a Morty clone** (index.html deleted, other files half new): the page answers 404 while the process is still running. Check `git -C /z/<repo> -c safe.directory='*' status` on Morty after a pull. Fixing it needs `git restore .` there, which the safety check blocks until the user says yes in chat.
+- **Half-applied pull on a Morty clone** (index.html deleted, other files half new): the page answers 404 while the process is still running. Check `git -C /z/<repo> -c safe.directory='*' status` on Morty after a pull. Fixing it needs `git restore .` there, which the safety check blocks until the user says yes in chat. Seen 2026-10-31 on `dream-library`: the running Library held `public/index.html` open, so the pull could not replace it ("File exists"); stopping the server released it. When a pull replaces a page, stop that server first.
 - **Portal status dots** used to count any reply as "Running", a 404 included. The portal now loads each Dream tool's `common/ui/theme.css` to tell a working tool from something else answering its port (the Library, World Builder and Skyfall still use a plain reachability check).
 - **Dev PC state is not the user's state**: window layouts, saved scenes and the Library files are per machine. Compare on Morty.
 - Windows may print "LF will be replaced by CRLF": harmless.
